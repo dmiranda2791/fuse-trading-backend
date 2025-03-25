@@ -8,6 +8,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import * as redisStore from 'cache-manager-redis-store';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { AppService } from './app.service';
       }),
     }),
     ScheduleModule.forRoot(),
+    CommonModule,
     // Add other modules here when they are created
   ],
   controllers: [AppController],
