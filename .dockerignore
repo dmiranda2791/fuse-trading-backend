@@ -1,0 +1,37 @@
+# Version control files
+.git
+.gitignore
+
+# Node.js dependencies
+node_modules
+npm-debug.log
+
+# Build files
+dist
+build
+
+# Environment files
+.env
+.env.*
+
+# Development files
+.prettierrc
+.eslintrc.js
+README.md
+docker-compose*.yml
+Dockerfile*
+
+# Tests
+test
+coverage
+.nyc_output
+
+# IDE/Editor files
+.idea
+.vscode
+*.swp
+*.swo
+
+# Docker specific
+.docker-data
+docker-compose*.yml 
