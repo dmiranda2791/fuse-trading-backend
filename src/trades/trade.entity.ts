@@ -14,6 +14,7 @@ export enum TradeStatus {
 }
 
 @Entity('trades')
+@Index(['userId', 'timestamp'])
 export class Trade {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -50,7 +51,4 @@ export class Trade {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
-
-  @Index(['user_id', 'timestamp'])
-  userTimestampIndex: any;
 }

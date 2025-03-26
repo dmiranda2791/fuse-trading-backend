@@ -1,0 +1,130 @@
+<html>
+  <head>
+    <meta charset='utf-8' />
+    <title>Fuse Daily Trade Report</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .header {
+        background-color: #3498db;
+        color: white;
+        padding: 15px;
+        text-align: center;
+        border-radius: 5px;
+        margin-bottom: 20px;
+      }
+      .summary {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        border-left: 5px solid #3498db;
+      }
+      .success {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .failed {
+        color: #dc3545;
+        font-weight: bold;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+      }
+      th,
+      td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+      }
+      tr:hover {
+        background-color: #f5f5f5;
+      }
+      .status-success {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .status-failed {
+        color: #dc3545;
+        font-weight: bold;
+      }
+      .footer {
+        text-align: center;
+        margin-top: 30px;
+        font-size: 12px;
+        color: #777;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='header'>
+      <h1>Fuse Daily Trade Report</h1>
+      <p>{{reportDate}}</p>
+    </div>
+
+    <div class='summary'>
+      <h2>Summary</h2>
+      <p>Total trades: <strong>{{totalTrades}}</strong></p>
+      <p>Successful trades: <span class='success'>{{successCount}}</span></p>
+      <p>Failed trades: <span class='failed'>{{failedCount}}</span></p>
+    </div>
+
+    {{#if failureReasons.length}}
+      <div>
+        <h2>Failure Reasons</h2>
+        <ul>
+          {{#each failureReasons}}
+            <li><strong>{{reason}}</strong>: {{count}} occurrences</li>
+          {{/each}}
+        </ul>
+      </div>
+    {{/if}}
+
+    {{#if trades.length}}
+      <div>
+        <h2>Transactions</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>User ID</th>
+              <th>Symbol</th>
+              <th>Price</th>
+              <th>Quantity</th>
+              <th>Status</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each trades}}
+              <tr>
+                <td>{{userId}}</td>
+                <td>{{symbol}}</td>
+                <td>${{price}}</td>
+                <td>{{quantity}}</td>
+                <td class='status-{{status}}'>{{status}}</td>
+                <td>{{timestamp}}</td>
+              </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
+    {{/if}}
+
+    <div class='footer'>
+      <p>This is an automated report from the Fuse Trading Platform.</p>
+      <p>&copy; {{currentYear}} Fuse Finance. All rights reserved.</p>
+    </div>
+  </body>
+</html>
