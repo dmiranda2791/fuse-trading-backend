@@ -4,15 +4,20 @@ This is a backend service for stock trading operations built with NestJS, TypeSc
 
 ## Features
 
-- List available stocks from vendor API
-- Get user portfolios
-- Execute stock purchase transactions
-- Generate and send daily reports by email
+- List available stocks from vendor API with caching and pagination
+- Get user portfolios with aggregated holding data
+- Execute stock purchase transactions with price validation (±2%)
+- Generate and send daily reports by email with transaction statistics
+- Implements resilient external API communication
+- Uses token-based to offset-based pagination translation
+- Comprehensive error handling with standardized error codes
+- Docker-based development and deployment environment
 
 ## Requirements
 
 - Node.js v20 or higher
 - Docker and Docker Compose
+- (Optional) SMTP server or Mailgun account for email sending
 
 ## Getting Started
 
@@ -106,6 +111,27 @@ npm install
 ```bash
 npm run start:dev
 ```
+
+## Documentation
+
+### API Documentation
+
+Interactive API documentation is available via Swagger UI at http://localhost:3000/api/docs when the application is running.
+
+### Project Documentation
+
+The following documentation is available in the `docs` directory:
+
+- [Architecture Report](REPORT.md) - Detailed explanation of system architecture and design decisions
+- [Implementation Roadmap](docs/Implementation%20Roadmap.md) - Step-by-step implementation plan
+
+### High-Level Architecture
+
+For a high-level overview of the system architecture, please see the [High Level Architecture](docs/High%20Level%20Architecture.md) document.
+
+### Low-Level Design Details
+
+For detailed information about the implementation of each module, please see the [Low Level Architecture](docs/Low%20Level%20Architecture.md) document.
 
 ## API Endpoints
 
