@@ -9,6 +9,7 @@ import * as redisStore from 'cache-manager-redis-store';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CommonModule } from './common/common.module';
+import { StocksModule } from './stocks/stocks.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { CommonModule } from './common/common.module';
     }),
     ScheduleModule.forRoot(),
     CommonModule,
+    StocksModule,
     // Add other modules here when they are created
   ],
   controllers: [AppController],
