@@ -11,6 +11,7 @@ import { AppService } from './app.service';
 import { CommonModule } from './common/common.module';
 import { StocksModule } from './stocks/stocks.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
+import { TradesModule } from './trades/trades.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { PortfolioModule } from './portfolio/portfolio.module';
     CommonModule,
     StocksModule,
     PortfolioModule,
+    TradesModule,
     // Add other modules here when they are created
   ],
   controllers: [AppController],
