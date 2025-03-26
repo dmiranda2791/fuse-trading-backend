@@ -2,10 +2,20 @@ import { ApiProperty } from '@nestjs/swagger';
 import { StockDto } from './stock.dto';
 
 export class PaginationQueryDto {
-  @ApiProperty({ example: 1, description: 'Page number (starts at 1)', required: false, default: 1 })
+  @ApiProperty({
+    example: 1,
+    description: 'Page number (starts at 1)',
+    required: false,
+    default: 1,
+  })
   page?: number;
 
-  @ApiProperty({ example: 25, description: 'Items per page', required: false, default: 25 })
+  @ApiProperty({
+    example: 25,
+    description: 'Items per page',
+    required: false,
+    default: 25,
+  })
   limit?: number;
 }
 
@@ -28,7 +38,10 @@ export class StockListResponseDto {
   @ApiProperty({ example: true, description: 'Whether there is a next page' })
   hasNextPage: boolean;
 
-  @ApiProperty({ example: false, description: 'Whether there is a previous page' })
+  @ApiProperty({
+    example: false,
+    description: 'Whether there is a previous page',
+  })
   hasPreviousPage: boolean;
 }
 
@@ -42,4 +55,4 @@ export class VendorStockDto {
 export class VendorStockListResponseDto {
   items: VendorStockDto[];
   nextToken?: string;
-} 
+}

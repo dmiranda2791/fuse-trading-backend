@@ -7,7 +7,7 @@ export class PaginationService {
   private readonly logger = new Logger(PaginationService.name);
   private readonly cacheTTL = 600; // 10 minutes cache TTL for pagination tokens
 
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) { }
+  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
 
   /**
    * Stores a pagination token with the corresponding page number in the cache
@@ -43,7 +43,9 @@ export class PaginationService {
     estimatedTotalItems?: number,
   ) {
     // If we don't have an exact count, estimate based on current page and items
-    const totalItems = estimatedTotalItems || (hasNextPage ? page * limit + 1 : page * limit - limit + items.length);
+    const totalItems =
+      estimatedTotalItems ||
+      (hasNextPage ? page * limit + 1 : page * limit - limit + items.length);
     const totalPages = Math.ceil(totalItems / limit);
 
     return {
@@ -56,4 +58,4 @@ export class PaginationService {
       hasPreviousPage: page > 1,
     };
   }
-} 
+}

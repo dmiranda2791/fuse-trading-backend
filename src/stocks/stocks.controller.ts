@@ -1,5 +1,20 @@
-import { Controller, DefaultValuePipe, Get, Logger, Param, ParseIntPipe, Query, UseInterceptors } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  DefaultValuePipe,
+  Get,
+  Logger,
+  Param,
+  ParseIntPipe,
+  Query,
+  UseInterceptors,
+} from '@nestjs/common';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CacheInterceptor } from '@nestjs/cache-manager';
 import { StocksService } from './stocks.service';
 import { StockDto } from './dto/stock.dto';
@@ -11,7 +26,7 @@ import { ParseStockSymbolPipe } from './pipes/parse-stock-symbol.pipe';
 export class StocksController {
   private readonly logger = new Logger(StocksController.name);
 
-  constructor(private readonly stocksService: StocksService) { }
+  constructor(private readonly stocksService: StocksService) {}
 
   @ApiOperation({ summary: 'Get all stocks' })
   @ApiQuery({
@@ -58,8 +73,10 @@ export class StocksController {
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @UseInterceptors(CacheInterceptor)
   @Get(':symbol')
-  async getStockBySymbol(@Param('symbol', ParseStockSymbolPipe) symbol: string): Promise<StockDto> {
+  async getStockBySymbol(
+    @Param('symbol', ParseStockSymbolPipe) symbol: string,
+  ): Promise<StockDto> {
     this.logger.debug(`Getting stock by symbol: ${symbol}`);
     return this.stocksService.getStockBySymbol(symbol);
   }
-} 
+}

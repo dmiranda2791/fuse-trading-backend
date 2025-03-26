@@ -29,7 +29,7 @@ export interface TokenPaginatedResponse<T> {
 export class PaginationService {
   private readonly logger = new AppLogger(PaginationService.name);
 
-  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) { }
+  constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
 
   /**
    * Stores a pagination token for a specific resource and page
@@ -37,7 +37,11 @@ export class PaginationService {
    * @param page The page number
    * @param token The pagination token
    */
-  async storeToken(resource: string, page: number, token: string): Promise<void> {
+  async storeToken(
+    resource: string,
+    page: number,
+    token: string,
+  ): Promise<void> {
     const key = `pagination:${resource}:page:${page}`;
     await this.cacheManager.set(key, token, 300000); // 5 minute TTL
     this.logger.debug(`Stored pagination token for ${resource} page ${page}`);
@@ -70,7 +74,10 @@ export class PaginationService {
     // which might require direct Redis client access
     this.logger.debug(`Cleared pagination tokens for ${resource}`);
     // For now, we'll just create a dummy invalidation key
-    await this.cacheManager.set(`pagination:${resource}:invalidated`, Date.now());
+    await this.cacheManager.set(
+      `pagination:${resource}:invalidated`,
+      Date.now(),
+    );
   }
 
   /**
@@ -94,4 +101,4 @@ export class PaginationService {
       },
     };
   }
-} 
+}

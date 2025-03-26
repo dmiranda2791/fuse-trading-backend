@@ -9,4 +9,4 @@ export class StockDto {
 
   @ApiProperty({ example: 154.67, description: 'Current stock price' })
   price: number;
-} 
+}

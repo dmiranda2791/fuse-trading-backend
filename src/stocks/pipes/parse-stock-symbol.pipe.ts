@@ -1,10 +1,15 @@
-import { ArgumentMetadata, BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
+import {
+  ArgumentMetadata,
+  BadRequestException,
+  Injectable,
+  PipeTransform,
+} from '@nestjs/common';
 
 @Injectable()
 export class ParseStockSymbolPipe implements PipeTransform {
   private readonly SYMBOL_REGEX = /^[A-Z0-9]{1,10}$/;
 
-  transform(value: any, metadata: ArgumentMetadata) {
+  transform(value: unknown, _metadata: ArgumentMetadata): string {
     if (!value || typeof value !== 'string') {
       throw new BadRequestException({
         errorCode: 'VAL_003',
@@ -18,10 +23,11 @@ export class ParseStockSymbolPipe implements PipeTransform {
     if (!this.SYMBOL_REGEX.test(symbol)) {
       throw new BadRequestException({
         errorCode: 'VAL_003',
-        message: 'Invalid stock symbol format. Must contain only uppercase letters and numbers, max 10 characters.',
+        message:
+          'Invalid stock symbol format. Must contain only uppercase letters and numbers, max 10 characters.',
       });
     }
 
     return symbol;
   }
-} 
+}

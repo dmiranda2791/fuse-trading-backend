@@ -6,7 +6,7 @@ import {
   TypeOrmHealthIndicator,
   HttpHealthIndicator,
   MemoryHealthIndicator,
-  DiskHealthIndicator
+  DiskHealthIndicator,
 } from '@nestjs/terminus';
 import { ConfigService } from '@nestjs/config';
 import { NoCache } from '../interceptors/cache.interceptor';
@@ -23,7 +23,7 @@ export class HealthController {
     private disk: DiskHealthIndicator,
     private redis: RedisHealthIndicator,
     private configService: ConfigService,
-  ) { }
+  ) {}
 
   @Get()
   @HealthCheck()
@@ -49,8 +49,14 @@ export class HealthController {
 
       // Check disk space if in production
       ...(process.env.NODE_ENV === 'production'
-        ? [() => this.disk.checkStorage('disk', { path: '/', thresholdPercent: 0.9 })]
+        ? [
+            () =>
+              this.disk.checkStorage('disk', {
+                path: '/',
+                thresholdPercent: 0.9,
+              }),
+          ]
         : []),
     ]);
   }
-} 
+}

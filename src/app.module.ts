@@ -10,6 +10,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { CommonModule } from './common/common.module';
 import { StocksModule } from './stocks/stocks.module';
+import { PortfolioModule } from './portfolio/portfolio.module';
 
 @Module({
   imports: [
@@ -31,8 +32,8 @@ import { StocksModule } from './stocks/stocks.module';
     CacheModule.registerAsync({
       isGlobal: true,
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        // @ts-ignore - Type issues with redis store
+      useFactory: (configService: ConfigService) => ({
+        // Type issues with redis store
         store: redisStore,
         host: configService.get<string>('redis.host'),
         port: configService.get<number>('redis.port'),
@@ -60,9 +61,10 @@ import { StocksModule } from './stocks/stocks.module';
     ScheduleModule.forRoot(),
     CommonModule,
     StocksModule,
+    PortfolioModule,
     // Add other modules here when they are created
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

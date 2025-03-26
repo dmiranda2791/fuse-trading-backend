@@ -1,4 +1,11 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { Request, Response } from 'express';
 
 export interface ErrorResponse {
@@ -10,6 +17,13 @@ export interface ErrorResponse {
   details?: Record<string, any>;
 }
 
+interface ExceptionResponseType {
+  errorCode?: string;
+  message?: string;
+  details?: Record<string, any>;
+  [key: string]: any;
+}
+
 @Catch(HttpException)
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
@@ -19,7 +33,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
     const status = exception.getStatus();
-    const exceptionResponse = exception.getResponse() as any;
+    const exceptionResponse = exception.getResponse() as ExceptionResponseType;
 
     // Build standardized error response
     const errorResponse: ErrorResponse = {
@@ -45,13 +59,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
-  catch(exception: any, host: ArgumentsHost) {
+  catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-    const status = exception instanceof HttpException
-      ? exception.getStatus()
-      : HttpStatus.INTERNAL_SERVER_ERROR;
+    const status =
+      exception instanceof HttpException
+        ? exception.getStatus()
+        : HttpStatus.INTERNAL_SERVER_ERROR;
 
     // Build standardized error response
     const errorResponse: ErrorResponse = {
@@ -63,11 +78,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     };
 
     // Log the error with stack trace
-    this.logger.error(
-      `Unhandled Exception: ${exception.message || exception}`,
-      exception.stack,
-    );
+    const errorMessage =
+      exception instanceof Error ? exception.message : String(exception);
+    const errorStack = exception instanceof Error ? exception.stack : undefined;
+
+    this.logger.error(`Unhandled Exception: ${errorMessage}`, errorStack);
 
     response.status(status).json(errorResponse);
   }
-} 
+}

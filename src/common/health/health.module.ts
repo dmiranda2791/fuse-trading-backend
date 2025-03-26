@@ -5,12 +5,9 @@ import { HealthController } from './health.controller';
 import { RedisHealthIndicator } from './redis.health';
 
 @Module({
-  imports: [
-    TerminusModule,
-    HttpModule,
-  ],
+  imports: [TerminusModule, HttpModule],
   controllers: [HealthController],
   providers: [RedisHealthIndicator],
   exports: [RedisHealthIndicator],
 })
-export class HealthModule { } 
+export class HealthModule {}

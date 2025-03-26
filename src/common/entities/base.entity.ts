@@ -1,7 +1,7 @@
 import {
   CreateDateColumn,
   UpdateDateColumn,
-  PrimaryGeneratedColumn
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 import { ApiHideProperty } from '@nestjs/swagger';
 
@@ -25,4 +25,4 @@ export abstract class BaseEntityWithSymbol extends BaseEntity {
 
 export abstract class BaseEntityWithUserId extends BaseEntity {
   abstract userId: string;
-} 
+}

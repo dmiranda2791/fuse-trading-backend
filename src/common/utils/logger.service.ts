@@ -12,37 +12,39 @@ export class AppLogger implements LoggerService {
     this.context = context;
   }
 
-  log(message: any, context?: string) {
+  log(message: unknown, context?: string) {
     this.printLog('log', message, context);
   }
 
-  error(message: any, trace?: string, context?: string) {
+  error(message: unknown, trace?: string, context?: string) {
     this.printLog('error', message, context, trace);
   }
 
-  warn(message: any, context?: string) {
+  warn(message: unknown, context?: string) {
     this.printLog('warn', message, context);
   }
 
-  debug(message: any, context?: string) {
+  debug(message: unknown, context?: string) {
     this.printLog('debug', message, context);
   }
 
-  verbose(message: any, context?: string) {
+  verbose(message: unknown, context?: string) {
     this.printLog('verbose', message, context);
   }
 
   private printLog(
     level: LogLevel,
-    message: any,
+    message: unknown,
     context?: string,
     trace?: string,
   ) {
     const ctx = context || this.context || 'Application';
     const timestamp = new Date().toISOString();
+    const formattedMessage = this.formatMessage(message);
+
     const logObject = {
       level: level.toUpperCase(),
-      message,
+      message: formattedMessage,
       context: ctx,
       timestamp,
       trace,
@@ -60,4 +62,17 @@ export class AppLogger implements LoggerService {
       console.log(JSON.stringify(logObject));
     }
   }
-} 
+
+  private formatMessage(message: unknown): string {
+    if (message === null) return 'null';
+    if (message === undefined) return 'undefined';
+    if (typeof message === 'string') return message;
+    if (message instanceof Error) return message.message;
+    try {
+      return JSON.stringify(message);
+    } catch {
+      // When message can't be stringified, use a safer approach
+      return `[object ${Object.prototype.toString.call(message).slice(8, -1)}]`;
+    }
+  }
+}

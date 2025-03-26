@@ -7,11 +7,9 @@ import { StocksHttpService } from './stocks-http.service';
 import { PaginationService } from './pagination.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Stock]),
-  ],
+  imports: [TypeOrmModule.forFeature([Stock])],
   controllers: [StocksController],
   providers: [StocksService, StocksHttpService, PaginationService],
   exports: [StocksService], // Export for use in other modules (e.g., Trades)
 })
-export class StocksModule { } 
+export class StocksModule {}

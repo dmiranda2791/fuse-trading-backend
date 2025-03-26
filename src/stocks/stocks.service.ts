@@ -17,9 +17,10 @@ export class StocksService {
   constructor(
     private readonly stocksHttpService: StocksHttpService,
     private readonly paginationService: PaginationService,
-    @InjectRepository(Stock) private readonly stockRepository: Repository<Stock>,
+    @InjectRepository(Stock)
+    private readonly stockRepository: Repository<Stock>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
-  ) { }
+  ) {}
 
   /**
    * Get a single stock by symbol
@@ -64,7 +65,10 @@ export class StocksService {
   /**
    * Get a list of stocks with pagination
    */
-  async getStocks(page: number = 1, limit: number = 25): Promise<StockListResponseDto> {
+  async getStocks(
+    page: number = 1,
+    limit: number = 25,
+  ): Promise<StockListResponseDto> {
     this.logger.debug(`Getting stocks page ${page} with limit ${limit}`);
 
     // Get page token from cache if not the first page
@@ -76,7 +80,9 @@ export class StocksService {
     // If we're requesting a page we've never seen before and it's not page 1,
     // we need to sequentially fetch all pages up to the requested page
     if (!pageToken && page > 1) {
-      this.logger.debug(`Page ${page} token not found, fetching pages sequentially`);
+      this.logger.debug(
+        `Page ${page} token not found, fetching pages sequentially`,
+      );
 
       let currentPage = 1;
       let currentToken: string | undefined = undefined;
@@ -87,7 +93,11 @@ export class StocksService {
         if (!result.nextToken) {
           // We've reached the end of the data but the requested page is beyond this
           return this.paginationService.createPaginationResponse(
-            [], page, limit, false, currentPage * limit
+            [],
+            page,
+            limit,
+            false,
+            currentPage * limit,
           );
         }
 
@@ -105,7 +115,9 @@ export class StocksService {
     } else {
       // Either we have the token for this page or it's page 1
       // Convert potentially null pageToken to undefined for the HTTP service
-      const result = await this.stocksHttpService.getStocks(pageToken || undefined);
+      const result = await this.stocksHttpService.getStocks(
+        pageToken || undefined,
+      );
       stocksFromVendor = result.items;
       nextToken = result.nextToken;
     }
@@ -157,11 +169,13 @@ export class StocksService {
     // Keep fetching pages until there's no nextToken
     do {
       const result = await this.stocksHttpService.getStocks(nextToken);
-      stocks.push(...result.items.map(item => ({
-        symbol: item.symbol,
-        name: item.name,
-        price: item.price,
-      })));
+      stocks.push(
+        ...result.items.map(item => ({
+          symbol: item.symbol,
+          name: item.name,
+          price: item.price,
+        })),
+      );
 
       nextToken = result.nextToken;
     } while (nextToken);
@@ -220,4 +234,4 @@ export class StocksService {
       price: stock.price,
     };
   }
-} 
+}

@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { AxiosRequestConfig, AxiosResponse } from 'axios';
+import { AxiosRequestConfig } from 'axios';
 import { catchError, firstValueFrom, retry, throwError, timer } from 'rxjs';
 import { AppLogger } from './logger.service';
 
@@ -34,7 +34,7 @@ export class HttpClient {
    * @param config Axios request config
    * @returns Promise of the response data
    */
-  async request<T = any>(
+  async request<T>(
     method: string,
     url: string,
     config: AxiosRequestConfig = {},
@@ -49,13 +49,14 @@ export class HttpClient {
 
     this.logger.debug(`Sending ${method} request to ${fullUrl}`);
 
-    try {
-      const response$ = this.httpService.request<T>({
+    const response$ = this.httpService
+      .request<T>({
         method,
         url: fullUrl,
         ...config,
         headers,
-      }).pipe(
+      })
+      .pipe(
         retry({
           count: this.maxRetries,
           delay: (error, retryCount) => {
@@ -67,12 +68,43 @@ export class HttpClient {
           },
         }),
         catchError(error => {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          const errorStack = error instanceof Error ? error.stack : undefined;
+
           this.logger.error(
-            `Request to ${fullUrl} failed after ${this.maxRetries} attempts: ${error.message}`,
-            error.stack,
+            `Request to ${fullUrl} failed after ${this.maxRetries} attempts: ${errorMessage}`,
+            errorStack,
           );
 
-          if (error.response) {
+          interface ErrorWithResponse {
+            response?: { status: number; data: unknown };
+            request?: unknown;
+          }
+
+          // Type guard to check if error has response property
+          const hasResponse = (
+            err: unknown,
+          ): err is ErrorWithResponse & {
+            response: NonNullable<ErrorWithResponse['response']>;
+          } =>
+            typeof err === 'object' &&
+            err !== null &&
+            'response' in err &&
+            err.response !== undefined;
+
+          // Type guard to check if error has request property
+          const hasRequest = (
+            err: unknown,
+          ): err is ErrorWithResponse & {
+            request: NonNullable<ErrorWithResponse['request']>;
+          } =>
+            typeof err === 'object' &&
+            err !== null &&
+            'request' in err &&
+            err.request !== undefined;
+
+          if (hasResponse(error)) {
             // The request was made and the server responded with a status code
             // that falls out of the range of 2xx
             const { status, data } = error.response;
@@ -82,53 +114,53 @@ export class HttpClient {
               message: 'Vendor API communication error',
               details: data,
             }));
-          } else if (error.request) {
+          } else if (hasRequest(error)) {
             // The request was made but no response was received
             return throwError(() => ({
               statusCode: 503,
               errorCode: 'API_002',
               message: 'Vendor API service unavailable',
-              details: { error: error.message },
+              details: { error: errorMessage },
             }));
           } else {
             // Something happened in setting up the request
-            return throwError(() => new InternalServerErrorException({
-              errorCode: 'SYS_001',
-              message: 'Error setting up vendor API request',
-              details: { error: error.message },
-            }));
+            return throwError(
+              () =>
+                new InternalServerErrorException({
+                  errorCode: 'SYS_001',
+                  message: 'Error setting up vendor API request',
+                  details: { error: errorMessage },
+                }),
+            );
           }
         }),
       );
 
-      const response = await firstValueFrom(response$);
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
+    const response = await firstValueFrom(response$);
+    return response.data;
   }
 
-  async get<T = any>(url: string, config: AxiosRequestConfig = {}): Promise<T> {
+  async get<T>(url: string, config: AxiosRequestConfig = {}): Promise<T> {
     return this.request<T>('GET', url, config);
   }
 
-  async post<T = any>(
+  async post<T>(
     url: string,
-    data?: any,
+    data?: unknown,
     config: AxiosRequestConfig = {},
   ): Promise<T> {
     return this.request<T>('POST', url, { ...config, data });
   }
 
-  async put<T = any>(
+  async put<T>(
     url: string,
-    data?: any,
+    data?: unknown,
     config: AxiosRequestConfig = {},
   ): Promise<T> {
     return this.request<T>('PUT', url, { ...config, data });
   }
 
-  async delete<T = any>(url: string, config: AxiosRequestConfig = {}): Promise<T> {
+  async delete<T>(url: string, config: AxiosRequestConfig = {}): Promise<T> {
     return this.request<T>('DELETE', url, config);
   }
-} 
+}

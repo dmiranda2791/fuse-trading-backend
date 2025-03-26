@@ -10,10 +10,10 @@ import { NotFoundException } from '@nestjs/common';
 
 describe('StocksService', () => {
   let service: StocksService;
-  let stocksHttpService: StocksHttpService;
-  let paginationService: PaginationService;
-  let stockRepository: Repository<Stock>;
-  let cacheManager: any;
+  let _stocksHttpService: StocksHttpService;
+  let _paginationService: PaginationService;
+  let _stockRepository: Repository<Stock>;
+  let _cacheManager: any;
 
   const mockStocksHttpService = {
     getStocks: jest.fn(),
@@ -59,10 +59,10 @@ describe('StocksService', () => {
     }).compile();
 
     service = module.get<StocksService>(StocksService);
-    stocksHttpService = module.get<StocksHttpService>(StocksHttpService);
-    paginationService = module.get<PaginationService>(PaginationService);
-    stockRepository = module.get<Repository<Stock>>(getRepositoryToken(Stock));
-    cacheManager = module.get(CACHE_MANAGER);
+    _stocksHttpService = module.get<StocksHttpService>(StocksHttpService);
+    _paginationService = module.get<PaginationService>(PaginationService);
+    _stockRepository = module.get<Repository<Stock>>(getRepositoryToken(Stock));
+    _cacheManager = module.get<unknown>(CACHE_MANAGER);
   });
 
   afterEach(() => {
@@ -75,7 +75,7 @@ describe('StocksService', () => {
 
   describe('getStockBySymbol', () => {
     it('should return a stock from cache if available', async () => {
-      const cachedStock = { symbol: 'AAPL', name: 'Apple Inc.', price: 150.50 };
+      const cachedStock = { symbol: 'AAPL', name: 'Apple Inc.', price: 150.5 };
       mockCacheManager.get.mockResolvedValue(cachedStock);
 
       const result = await service.getStockBySymbol('AAPL');
@@ -93,7 +93,7 @@ describe('StocksService', () => {
       const dbStock = {
         symbol: 'AAPL',
         name: 'Apple Inc.',
-        price: 150.50,
+        price: 150.5,
         lastFetchedAt: new Date(),
       };
       mockStockRepository.findOne.mockResolvedValue(dbStock);
@@ -101,12 +101,14 @@ describe('StocksService', () => {
       const result = await service.getStockBySymbol('AAPL');
 
       expect(mockCacheManager.get).toHaveBeenCalledWith('stock:AAPL');
-      expect(mockStockRepository.findOne).toHaveBeenCalledWith({ where: { symbol: 'AAPL' } });
+      expect(mockStockRepository.findOne).toHaveBeenCalledWith({
+        where: { symbol: 'AAPL' },
+      });
       expect(mockCacheManager.set).toHaveBeenCalled();
       expect(result).toEqual({
         symbol: 'AAPL',
         name: 'Apple Inc.',
-        price: 150.50,
+        price: 150.5,
       });
     });
 
@@ -118,11 +120,15 @@ describe('StocksService', () => {
       mockStockRepository.findOne.mockResolvedValue(null);
 
       // No stock found in vendor API
-      jest.spyOn(service as any, 'fetchStocksFromVendor').mockResolvedValue([
-        { symbol: 'MSFT', name: 'Microsoft', price: 300.10 },
-      ]);
+      jest
+        .spyOn(service as any, 'fetchStocksFromVendor')
+        .mockResolvedValue([
+          { symbol: 'MSFT', name: 'Microsoft', price: 300.1 },
+        ]);
 
-      await expect(service.getStockBySymbol('AAPL')).rejects.toThrow(NotFoundException);
+      await expect(service.getStockBySymbol('AAPL')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -130,8 +136,8 @@ describe('StocksService', () => {
     it('should fetch stocks with pagination', async () => {
       const vendorResponse = {
         items: [
-          { symbol: 'AAPL', name: 'Apple Inc.', price: 150.50 },
-          { symbol: 'MSFT', name: 'Microsoft', price: 300.10 },
+          { symbol: 'AAPL', name: 'Apple Inc.', price: 150.5 },
+          { symbol: 'MSFT', name: 'Microsoft', price: 300.1 },
         ],
         nextToken: 'some-token',
       };
@@ -152,7 +158,10 @@ describe('StocksService', () => {
 
       expect(mockPaginationService.getToken).toHaveBeenCalledWith(1);
       expect(mockStocksHttpService.getStocks).toHaveBeenCalledWith(undefined);
-      expect(mockPaginationService.storeToken).toHaveBeenCalledWith(1, 'some-token');
+      expect(mockPaginationService.storeToken).toHaveBeenCalledWith(
+        1,
+        'some-token',
+      );
       expect(mockStockRepository.save).toHaveBeenCalledTimes(2);
       expect(mockPaginationService.createPaginationResponse).toHaveBeenCalled();
       expect(result.items).toEqual(vendorResponse.items);
@@ -165,7 +174,7 @@ describe('StocksService', () => {
       const vendorResponse = {
         items: [
           { symbol: 'FB', name: 'Meta', price: 250.75 },
-          { symbol: 'AMZN', name: 'Amazon', price: 3200.10 },
+          { symbol: 'AMZN', name: 'Amazon', price: 3200.1 },
         ],
         nextToken: 'page-3-token',
       };
@@ -185,8 +194,11 @@ describe('StocksService', () => {
 
       expect(mockPaginationService.getToken).toHaveBeenCalledWith(2);
       expect(mockStocksHttpService.getStocks).toHaveBeenCalledWith(pageToken);
-      expect(mockPaginationService.storeToken).toHaveBeenCalledWith(2, 'page-3-token');
+      expect(mockPaginationService.storeToken).toHaveBeenCalledWith(
+        2,
+        'page-3-token',
+      );
       expect(result.page).toBe(2);
     });
   });
-}); 
+});

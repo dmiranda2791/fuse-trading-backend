@@ -44,4 +44,4 @@ export default () => ({
   queue: {
     concurrency: parseInt(process.env.QUEUE_CONCURRENCY || '10', 10),
   },
-}); 
+});

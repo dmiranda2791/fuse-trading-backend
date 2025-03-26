@@ -1,7 +1,13 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosError } from 'axios';
 import { VendorStockListResponseDto } from './dto/stock-list.dto';
+
+interface VendorApiResponse {
+  status: number;
+  data?: VendorStockListResponseDto;
+  message?: string;
+}
 
 @Injectable()
 export class StocksHttpService {
@@ -37,48 +43,66 @@ export class StocksHttpService {
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        this.logger.debug(`Fetching stocks from vendor API: ${url}, attempt: ${attempt}`);
-        const response = await this.httpClient.get(url);
+        this.logger.debug(
+          `Fetching stocks from vendor API: ${url}, attempt: ${attempt}`,
+        );
+        const response = await this.httpClient.get<VendorApiResponse>(url);
 
-        if (response.data?.status === 200 && response.data?.data) {
+        if (response.status === 200 && response.data?.data) {
           return response.data.data;
         }
 
         throw new Error('Unexpected response format from vendor API');
       } catch (error) {
         const isLastAttempt = attempt === this.maxRetries;
+        const axiosError = error as AxiosError;
 
-        if (error.response) {
+        if (axiosError.response) {
           // The request was made and the server responded with a status code outside of 2xx range
+          const responseData = axiosError.response.data as
+            | VendorApiResponse
+            | undefined;
+          const errorMessage = responseData?.message || 'Unknown error';
+
           this.logger.error(
-            `Vendor API error: ${error.response.status} - ${error.response.data?.message || 'Unknown error'}`,
-            error.stack,
+            `Vendor API error: ${axiosError.response.status} - ${errorMessage}`,
+            axiosError instanceof Error ? axiosError.stack : undefined,
           );
 
           if (isLastAttempt) {
             throw new HttpException(
               `Failed to fetch stocks after ${this.maxRetries} attempts`,
-              HttpStatus.BAD_GATEWAY
+              HttpStatus.BAD_GATEWAY,
             );
           }
-        } else if (error.request) {
+        } else if (axiosError.request) {
           // The request was made but no response was received
-          this.logger.error(`Vendor API request error: No response received`, error.stack);
+          this.logger.error(
+            `Vendor API request error: No response received`,
+            axiosError instanceof Error ? axiosError.stack : undefined,
+          );
 
           if (isLastAttempt) {
             throw new HttpException(
               `Vendor API unavailable after ${this.maxRetries} attempts`,
-              HttpStatus.SERVICE_UNAVAILABLE
+              HttpStatus.SERVICE_UNAVAILABLE,
             );
           }
         } else {
           // Error in setting up the request
-          this.logger.error(`Vendor API setup error: ${error.message}`, error.stack);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          const errorStack = error instanceof Error ? error.stack : undefined;
+
+          this.logger.error(
+            `Vendor API setup error: ${errorMessage}`,
+            errorStack,
+          );
 
           if (isLastAttempt) {
             throw new HttpException(
               'Error connecting to vendor API',
-              HttpStatus.INTERNAL_SERVER_ERROR
+              HttpStatus.INTERNAL_SERVER_ERROR,
             );
           }
         }
@@ -99,7 +123,7 @@ export class StocksHttpService {
     // but TypeScript requires an explicit return to satisfy the return type
     throw new HttpException(
       'Failed to fetch stocks due to an unexpected error',
-      HttpStatus.INTERNAL_SERVER_ERROR
+      HttpStatus.INTERNAL_SERVER_ERROR,
     );
   }
-} 
+}

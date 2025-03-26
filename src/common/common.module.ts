@@ -1,7 +1,10 @@
 import { Module, Global } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { APP_FILTER, APP_PIPE, APP_INTERCEPTOR } from '@nestjs/core';
-import { HttpExceptionFilter, AllExceptionsFilter } from './filters/http-exception.filter';
+import {
+  HttpExceptionFilter,
+  AllExceptionsFilter,
+} from './filters/http-exception.filter';
 import { HttpCacheInterceptor } from './interceptors/cache.interceptor';
 import { ValidationPipe } from './pipes/validation.pipe';
 import { AppLogger } from './utils/logger.service';
@@ -42,11 +45,6 @@ import { HealthModule } from './health/health.module';
       useClass: HttpCacheInterceptor,
     },
   ],
-  exports: [
-    AppLogger,
-    HttpClient,
-    PaginationService,
-    HealthModule,
-  ],
+  exports: [AppLogger, HttpClient, PaginationService, HealthModule],
 })
-export class CommonModule { } 
+export class CommonModule {}

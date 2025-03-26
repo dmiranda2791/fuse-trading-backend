@@ -48,4 +48,4 @@ import * as Joi from 'joi';
   ],
   exports: [NestConfigModule],
 })
-export class ConfigModule { } 
+export class ConfigModule {}
