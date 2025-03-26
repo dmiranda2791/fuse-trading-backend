@@ -4,7 +4,7 @@ import { Job } from 'bull';
 import { ConfigService } from '@nestjs/config';
 import { ReportService } from './reports.service';
 
-interface DailyReportJobData {
+export interface DailyReportJobData {
   date?: Date;
 }
 
