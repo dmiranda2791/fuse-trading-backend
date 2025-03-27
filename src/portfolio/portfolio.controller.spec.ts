@@ -3,6 +3,8 @@ import { PortfolioController } from './portfolio.controller';
 import { PortfolioService } from './portfolio.service';
 import { NotFoundException } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { PortfolioItemDto } from './dto/portfolio.dto';
+import { CursorPaginatedResponseDto } from '../common/dto/pagination.dto';
 
 describe('PortfolioController', () => {
   let controller: PortfolioController;
@@ -40,14 +42,12 @@ describe('PortfolioController', () => {
   describe('getPortfolio', () => {
     it('should return a user portfolio when it exists', async () => {
       const userId = 'user123';
-      const mockPortfolio = {
-        userId,
-        holdings: [
-          { symbol: 'AAPL', quantity: 10 },
-          { symbol: 'MSFT', quantity: 5 },
+      const mockPortfolio: CursorPaginatedResponseDto<PortfolioItemDto> = {
+        items: [
+          { userId, symbol: 'AAPL', quantity: 10 },
+          { userId, symbol: 'MSFT', quantity: 5 },
         ],
-        totalStocks: 2,
-        totalShares: 15,
+        nextToken: null, // No more pages
       };
 
       const getUserPortfolioSpy = jest
@@ -55,7 +55,7 @@ describe('PortfolioController', () => {
         .mockResolvedValue(mockPortfolio);
 
       expect(await controller.getPortfolio(userId)).toBe(mockPortfolio);
-      expect(getUserPortfolioSpy).toHaveBeenCalledWith(userId);
+      expect(getUserPortfolioSpy).toHaveBeenCalledWith(userId, undefined);
     });
 
     it('should throw NotFoundException when portfolio does not exist', async () => {
@@ -69,7 +69,7 @@ describe('PortfolioController', () => {
       await expect(controller.getPortfolio(userId)).rejects.toThrow(
         NotFoundException,
       );
-      expect(getUserPortfolioSpy).toHaveBeenCalledWith(userId);
+      expect(getUserPortfolioSpy).toHaveBeenCalledWith(userId, undefined);
     });
 
     it('should propagate other errors', async () => {
@@ -81,7 +81,7 @@ describe('PortfolioController', () => {
         .mockRejectedValue(error);
 
       await expect(controller.getPortfolio(userId)).rejects.toThrow(error);
-      expect(getUserPortfolioSpy).toHaveBeenCalledWith(userId);
+      expect(getUserPortfolioSpy).toHaveBeenCalledWith(userId, undefined);
     });
   });
 });

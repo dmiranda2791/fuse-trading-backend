@@ -1,10 +1,8 @@
 import {
   Controller,
-  DefaultValuePipe,
   Get,
   Logger,
   Param,
-  ParseIntPipe,
   Query,
   UseInterceptors,
 } from '@nestjs/common';
@@ -30,16 +28,10 @@ export class StocksController {
 
   @ApiOperation({ summary: 'Get all stocks' })
   @ApiQuery({
-    name: 'page',
+    name: 'nextToken',
     required: false,
-    type: Number,
-    description: 'Page number (starts at 1)',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Items per page (default: 25)',
+    type: String,
+    description: 'Token for the next page of results',
   })
   @ApiResponse({
     status: 200,
@@ -51,11 +43,10 @@ export class StocksController {
   @UseInterceptors(CacheInterceptor)
   @Get()
   async getStocks(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(25), ParseIntPipe) limit: number,
+    @Query('nextToken') nextToken?: string,
   ): Promise<StockListResponseDto> {
-    this.logger.debug(`Getting stocks page: ${page}, limit: ${limit}`);
-    return this.stocksService.getStocks(page, limit);
+    this.logger.debug(`Getting stocks with nextToken: ${nextToken || 'none'}`);
+    return this.stocksService.getStocks(nextToken);
   }
 
   @ApiOperation({ summary: 'Get a stock by symbol' })

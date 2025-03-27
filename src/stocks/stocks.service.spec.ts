@@ -3,7 +3,6 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { StocksService } from './stocks.service';
 import { StocksHttpService } from './stocks-http.service';
-import { PaginationService } from './pagination.service';
 import { Stock } from './stock.entity';
 import { Repository } from 'typeorm';
 import { NotFoundException } from '@nestjs/common';
@@ -11,18 +10,11 @@ import { NotFoundException } from '@nestjs/common';
 describe('StocksService', () => {
   let service: StocksService;
   let _stocksHttpService: StocksHttpService;
-  let _paginationService: PaginationService;
   let _stockRepository: Repository<Stock>;
   let _cacheManager: any;
 
   const mockStocksHttpService = {
     getStocks: jest.fn(),
-  };
-
-  const mockPaginationService = {
-    getToken: jest.fn(),
-    storeToken: jest.fn(),
-    createPaginationResponse: jest.fn(),
   };
 
   const mockStockRepository = {
@@ -44,10 +36,6 @@ describe('StocksService', () => {
           useValue: mockStocksHttpService,
         },
         {
-          provide: PaginationService,
-          useValue: mockPaginationService,
-        },
-        {
           provide: getRepositoryToken(Stock),
           useValue: mockStockRepository,
         },
@@ -60,7 +48,6 @@ describe('StocksService', () => {
 
     service = module.get<StocksService>(StocksService);
     _stocksHttpService = module.get<StocksHttpService>(StocksHttpService);
-    _paginationService = module.get<PaginationService>(PaginationService);
     _stockRepository = module.get<Repository<Stock>>(getRepositoryToken(Stock));
     _cacheManager = module.get<unknown>(CACHE_MANAGER);
   });
@@ -133,7 +120,7 @@ describe('StocksService', () => {
   });
 
   describe('getStocks', () => {
-    it('should fetch stocks with pagination', async () => {
+    it('should fetch stocks with cursor-based pagination', async () => {
       const vendorResponse = {
         items: [
           { symbol: 'AAPL', name: 'Apple Inc.', price: 150.5 },
@@ -142,34 +129,18 @@ describe('StocksService', () => {
         nextToken: 'some-token',
       };
 
-      mockPaginationService.getToken.mockResolvedValue(null);
       mockStocksHttpService.getStocks.mockResolvedValue(vendorResponse);
-      mockPaginationService.createPaginationResponse.mockReturnValue({
-        items: vendorResponse.items,
-        page: 1,
-        limit: 25,
-        totalItems: 2,
-        totalPages: 1,
-        hasNextPage: true,
-        hasPreviousPage: false,
-      });
 
-      const result = await service.getStocks(1, 25);
+      const result = await service.getStocks();
 
-      expect(mockPaginationService.getToken).toHaveBeenCalledWith(1);
       expect(mockStocksHttpService.getStocks).toHaveBeenCalledWith(undefined);
-      expect(mockPaginationService.storeToken).toHaveBeenCalledWith(
-        1,
-        'some-token',
-      );
       expect(mockStockRepository.save).toHaveBeenCalledTimes(2);
-      expect(mockPaginationService.createPaginationResponse).toHaveBeenCalled();
-      expect(result.items).toEqual(vendorResponse.items);
+      expect(result.items).toHaveLength(2);
+      expect(result.nextToken).toBe('some-token');
     });
 
-    it('should handle pagination for pages beyond the first', async () => {
-      const pageToken = 'page-2-token';
-      mockPaginationService.getToken.mockResolvedValue(pageToken);
+    it('should handle pagination with nextToken', async () => {
+      const nextToken = 'page-2-token';
 
       const vendorResponse = {
         items: [
@@ -180,25 +151,12 @@ describe('StocksService', () => {
       };
 
       mockStocksHttpService.getStocks.mockResolvedValue(vendorResponse);
-      mockPaginationService.createPaginationResponse.mockReturnValue({
-        items: vendorResponse.items,
-        page: 2,
-        limit: 25,
-        totalItems: 52,
-        totalPages: 3,
-        hasNextPage: true,
-        hasPreviousPage: true,
-      });
 
-      const result = await service.getStocks(2, 25);
+      const result = await service.getStocks(nextToken);
 
-      expect(mockPaginationService.getToken).toHaveBeenCalledWith(2);
-      expect(mockStocksHttpService.getStocks).toHaveBeenCalledWith(pageToken);
-      expect(mockPaginationService.storeToken).toHaveBeenCalledWith(
-        2,
-        'page-3-token',
-      );
-      expect(result.page).toBe(2);
+      expect(mockStocksHttpService.getStocks).toHaveBeenCalledWith(nextToken);
+      expect(result.items).toHaveLength(2);
+      expect(result.nextToken).toBe('page-3-token');
     });
   });
 });

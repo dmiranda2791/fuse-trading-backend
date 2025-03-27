@@ -1,71 +1,117 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Portfolio } from './portfolio.entity';
-import { PortfolioResponseDto, PortfolioItemDto } from './dto/portfolio.dto';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Inject } from '@nestjs/common';
-import { Cache } from 'cache-manager';
+import { PortfolioItemDto } from './dto/portfolio.dto';
+import { CursorPaginatedResponseDto } from '../common/dto/pagination.dto';
+
+interface PortfolioCursor {
+  offset: number;
+}
 
 @Injectable()
 export class PortfolioService {
   private readonly logger = new Logger(PortfolioService.name);
+  private readonly pageSize = 10; // Default page size
 
   constructor(
     @InjectRepository(Portfolio)
     private portfolioRepository: Repository<Portfolio>,
-    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   /**
-   * Get a user's portfolio with all their stock holdings
+   * Get a user's portfolio with all their stock holdings using cursor-based pagination
    * @param userId The ID of the user whose portfolio to retrieve
-   * @returns Portfolio data with holdings
+   * @param nextToken Optional token for pagination
+   * @returns Paginated portfolio data with holdings
    */
-  async getUserPortfolio(userId: string): Promise<PortfolioResponseDto> {
-    // Try to get from cache first
-    const cacheKey = `portfolio:${userId}`;
-    const cachedPortfolio =
-      await this.cacheManager.get<PortfolioResponseDto>(cacheKey);
+  async getUserPortfolio(
+    userId: string,
+    nextToken?: string,
+  ): Promise<CursorPaginatedResponseDto<PortfolioItemDto>> {
+    this.logger.debug(
+      `Getting portfolio for user ${userId} with nextToken: ${nextToken || 'none'}`,
+    );
 
-    if (cachedPortfolio) {
-      return cachedPortfolio;
+    // Default offset is 0 (beginning of the list)
+    let offset = 0;
+
+    // Decode the cursor if provided
+    if (nextToken) {
+      try {
+        const decodedCursor = Buffer.from(nextToken, 'base64').toString(
+          'utf-8',
+        );
+        const cursor = JSON.parse(decodedCursor) as PortfolioCursor;
+        offset = cursor.offset;
+      } catch (error) {
+        this.logger.error(
+          `Invalid pagination token: ${nextToken}`,
+          error instanceof Error ? error.stack : String(error),
+        );
+        throw new BadRequestException('Invalid pagination token');
+      }
     }
 
-    // If not in cache, get from database
-    const holdings = await this.portfolioRepository.find({
-      where: { userId },
-    });
+    // Query the database with offset pagination
+    const [portfolioItems, _totalCount] =
+      await this.portfolioRepository.findAndCount({
+        where: { userId },
+        order: { symbol: 'ASC' },
+        skip: offset,
+        take: this.pageSize + 1, // Get one extra to check if there's more
+      });
 
-    if (!holdings || holdings.length === 0) {
+    if (!portfolioItems || portfolioItems.length === 0) {
       throw new NotFoundException(`Portfolio not found for user ${userId}`);
     }
 
-    // Map to response DTO
-    const portfolioItems: PortfolioItemDto[] = holdings.map(holding => ({
-      symbol: holding.symbol,
-      quantity: holding.quantity,
-    }));
+    // Check if we have more items
+    const hasNextPage = portfolioItems.length > this.pageSize;
+    const items = hasNextPage
+      ? portfolioItems.slice(0, this.pageSize)
+      : portfolioItems;
 
-    // Calculate totals
-    const totalStocks = portfolioItems.length;
-    const totalShares = portfolioItems.reduce(
-      (sum, item) => sum + item.quantity,
-      0,
-    );
+    // Convert portfolio items to DTOs
+    const portfolioItemDtos = this.convertToPortfolioItems(userId, items);
 
-    // Create response
-    const response: PortfolioResponseDto = {
-      userId,
-      holdings: portfolioItems,
-      totalStocks,
-      totalShares,
+    // Create the paginated response
+    const response: CursorPaginatedResponseDto<PortfolioItemDto> = {
+      items: portfolioItemDtos,
+      nextToken: null, // Null when there are no more pages
     };
 
-    // Cache the result with a 15-minute TTL
-    await this.cacheManager.set(cacheKey, response, 15 * 60 * 1000);
+    // Generate next token if there are more items
+    if (hasNextPage) {
+      const newCursor: PortfolioCursor = { offset: offset + this.pageSize };
+      response.nextToken = Buffer.from(JSON.stringify(newCursor)).toString(
+        'base64',
+      );
+    }
 
     return response;
+  }
+
+  /**
+   * Convert portfolio items to DTOs with userId, symbol and quantity
+   * @param userId The user ID
+   * @param portfolioItems The portfolio items to convert
+   * @returns Portfolio items with userId, symbol and quantity
+   */
+  private convertToPortfolioItems(
+    userId: string,
+    portfolioItems: Portfolio[],
+  ): PortfolioItemDto[] {
+    return portfolioItems.map(item => ({
+      userId,
+      symbol: item.symbol,
+      quantity: item.quantity,
+    }));
   }
 
   /**
@@ -112,10 +158,6 @@ export class PortfolioService {
       });
       await this.portfolioRepository.save(newHolding);
     }
-
-    // Invalidate cache for this user's portfolio
-    this.logger.debug('Invalidating portfolio cache');
-    await this.cacheManager.del(`portfolio:${userId}`);
 
     this.logger.debug('Portfolio update completed');
   }

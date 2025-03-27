@@ -112,6 +112,29 @@ npm install
 npm run start:dev
 ```
 
+## Data Seeding
+
+To quickly populate a user's portfolio with test data, the project includes a seed script that automatically purchases random stocks:
+
+```bash
+# Make sure the application is running first
+npm run seed-portfolio
+```
+
+By default, the script will:
+
+- Use the user ID "user123"
+- Attempt to purchase up to 20 different stocks
+- Generate random quantities (1-10 shares per stock)
+- Set purchase prices within the allowed ±2% range to ensure successful transactions
+
+You can modify the script settings by editing `scripts/seed-portfolio.ts`:
+
+- `USER_ID`: Change the target user
+- `NUM_STOCKS_TO_BUY`: Adjust the number of stocks to purchase
+
+The script provides detailed logging of each purchase attempt, showing successes and failures, and will add the purchased stocks to the specified user's portfolio.
+
 ## Documentation
 
 ### API Documentation

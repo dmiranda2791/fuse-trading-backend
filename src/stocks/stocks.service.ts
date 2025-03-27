@@ -6,7 +6,6 @@ import { Repository } from 'typeorm';
 import { Stock } from './stock.entity';
 import { StocksHttpService } from './stocks-http.service';
 import { StockDto } from './dto/stock.dto';
-import { PaginationService } from './pagination.service';
 import { StockListResponseDto } from './dto/stock-list.dto';
 
 @Injectable()
@@ -16,7 +15,6 @@ export class StocksService {
 
   constructor(
     private readonly stocksHttpService: StocksHttpService,
-    private readonly paginationService: PaginationService,
     @InjectRepository(Stock)
     private readonly stockRepository: Repository<Stock>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
@@ -65,73 +63,17 @@ export class StocksService {
   /**
    * Get a list of stocks with pagination
    */
-  async getStocks(
-    page: number = 1,
-    limit: number = 25,
-  ): Promise<StockListResponseDto> {
-    this.logger.debug(`Getting stocks page ${page} with limit ${limit}`);
+  async getStocks(nextToken?: string): Promise<StockListResponseDto> {
+    this.logger.debug(`Getting stocks with nextToken: ${nextToken || 'none'}`);
 
-    // Get page token from cache if not the first page
-    const pageToken = await this.paginationService.getToken(page);
+    // Directly call the vendor API with the provided nextToken
+    const result = await this.stocksHttpService.getStocks(nextToken);
 
-    let stocksFromVendor = [];
-    let nextToken: string | undefined = undefined;
-
-    // If we're requesting a page we've never seen before and it's not page 1,
-    // we need to sequentially fetch all pages up to the requested page
-    if (!pageToken && page > 1) {
-      this.logger.debug(
-        `Page ${page} token not found, fetching pages sequentially`,
-      );
-
-      let currentPage = 1;
-      let currentToken: string | undefined = undefined;
-
-      while (currentPage < page) {
-        const result = await this.stocksHttpService.getStocks(currentToken);
-
-        if (!result.nextToken) {
-          // We've reached the end of the data but the requested page is beyond this
-          return this.paginationService.createPaginationResponse(
-            [],
-            page,
-            limit,
-            false,
-            currentPage * limit,
-          );
-        }
-
-        // Store the token for the next page
-        await this.paginationService.storeToken(currentPage, result.nextToken);
-
-        currentToken = result.nextToken;
-        currentPage++;
-      }
-
-      // Now we can fetch the actual requested page
-      const result = await this.stocksHttpService.getStocks(currentToken);
-      stocksFromVendor = result.items;
-      nextToken = result.nextToken;
-    } else {
-      // Either we have the token for this page or it's page 1
-      // Convert potentially null pageToken to undefined for the HTTP service
-      const result = await this.stocksHttpService.getStocks(
-        pageToken || undefined,
-      );
-      stocksFromVendor = result.items;
-      nextToken = result.nextToken;
-    }
-
-    // Store the next token if available
-    if (nextToken) {
-      await this.paginationService.storeToken(page, nextToken);
-    }
-
-    // Map to DTOs
-    const stocks = stocksFromVendor.map(stock => ({
-      symbol: stock.symbol,
-      name: stock.name,
-      price: stock.price,
+    // Map vendor stocks to our DTO format
+    const stocks = result.items.map(item => ({
+      symbol: item.symbol,
+      name: item.name,
+      price: item.price,
     }));
 
     // Update stocks in the database
@@ -140,13 +82,11 @@ export class StocksService {
     // Cache individual stocks
     await this.cacheStocks(stocks);
 
-    // Create pagination response
-    return this.paginationService.createPaginationResponse(
-      stocks,
-      page,
-      limit,
-      !!nextToken,
-    );
+    // Return cursor-based response
+    return {
+      items: stocks,
+      nextToken: result.nextToken || null,
+    };
   }
 
   /**

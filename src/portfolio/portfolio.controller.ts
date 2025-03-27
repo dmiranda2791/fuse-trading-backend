@@ -2,14 +2,21 @@ import {
   Controller,
   Get,
   Param,
-  UseInterceptors,
   NotFoundException,
   UseGuards,
+  Query,
+  Logger,
 } from '@nestjs/common';
-import { CacheInterceptor } from '@nestjs/cache-manager';
 import { PortfolioService } from './portfolio.service';
-import { PortfolioResponseDto } from './dto/portfolio.dto';
-import { ApiOperation, ApiResponse, ApiTags, ApiParam } from '@nestjs/swagger';
+import { PortfolioItemDto } from './dto/portfolio.dto';
+import { CursorPaginatedResponseDto } from '../common/dto/pagination.dto';
+import {
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 
 // To be implemented in authentication phase
 class PortfolioOwnerGuard {
@@ -21,10 +28,11 @@ class PortfolioOwnerGuard {
 @ApiTags('portfolio')
 @Controller('portfolio')
 export class PortfolioController {
+  private readonly logger = new Logger(PortfolioController.name);
+
   constructor(private readonly portfolioService: PortfolioService) {}
 
   @Get(':userId')
-  @UseInterceptors(CacheInterceptor)
   @UseGuards(PortfolioOwnerGuard) // This will be implemented when auth is added
   @ApiOperation({ summary: "Get a user's portfolio" })
   @ApiParam({
@@ -32,17 +40,27 @@ export class PortfolioController {
     description: 'ID of the user whose portfolio to retrieve',
     example: 'user123',
   })
+  @ApiQuery({
+    name: 'nextToken',
+    required: false,
+    type: String,
+    description: 'Token for the next page of results',
+  })
   @ApiResponse({
     status: 200,
     description: 'Portfolio retrieved successfully',
-    type: PortfolioResponseDto,
+    type: CursorPaginatedResponseDto<PortfolioItemDto>,
   })
   @ApiResponse({ status: 404, description: 'Portfolio not found' })
   async getPortfolio(
     @Param('userId') userId: string,
-  ): Promise<PortfolioResponseDto> {
+    @Query('nextToken') nextToken?: string,
+  ): Promise<CursorPaginatedResponseDto<PortfolioItemDto>> {
     try {
-      return this.portfolioService.getUserPortfolio(userId);
+      this.logger.debug(
+        `Getting portfolio for user ${userId} with nextToken: ${nextToken || 'none'}`,
+      );
+      return this.portfolioService.getUserPortfolio(userId, nextToken);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;

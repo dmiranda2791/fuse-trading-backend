@@ -9,7 +9,6 @@ import { HttpCacheInterceptor } from './interceptors/cache.interceptor';
 import { ValidationPipe } from './pipes/validation.pipe';
 import { AppLogger } from './utils/logger.service';
 import { HttpClient } from './utils/http.util';
-import { PaginationService } from './utils/pagination.util';
 import { HealthModule } from './health/health.module';
 
 @Global()
@@ -27,7 +26,6 @@ import { HealthModule } from './health/health.module';
       useFactory: () => new AppLogger(),
     },
     HttpClient,
-    PaginationService,
     {
       provide: APP_FILTER,
       useClass: AllExceptionsFilter,
@@ -45,6 +43,6 @@ import { HealthModule } from './health/health.module';
       useClass: HttpCacheInterceptor,
     },
   ],
-  exports: [AppLogger, HttpClient, PaginationService, HealthModule],
+  exports: [AppLogger, HttpClient, HealthModule],
 })
 export class CommonModule {}

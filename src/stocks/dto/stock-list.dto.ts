@@ -1,49 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { StockDto } from './stock.dto';
+import { CursorPaginatedResponseDto } from '../../common/dto/pagination.dto';
 
 export class PaginationQueryDto {
   @ApiProperty({
-    example: 1,
-    description: 'Page number (starts at 1)',
+    example: 'abc123',
+    description: 'Token for the next page of results',
     required: false,
-    default: 1,
   })
-  page?: number;
-
-  @ApiProperty({
-    example: 25,
-    description: 'Items per page',
-    required: false,
-    default: 25,
-  })
-  limit?: number;
+  nextToken?: string;
 }
 
-export class StockListResponseDto {
-  @ApiProperty({ description: 'List of stocks', type: [StockDto] })
-  items: StockDto[];
-
-  @ApiProperty({ example: 1, description: 'Current page number' })
-  page: number;
-
-  @ApiProperty({ example: 25, description: 'Items per page' })
-  limit: number;
-
-  @ApiProperty({ example: 100, description: 'Total number of items' })
-  totalItems: number;
-
-  @ApiProperty({ example: 4, description: 'Total number of pages' })
-  totalPages: number;
-
-  @ApiProperty({ example: true, description: 'Whether there is a next page' })
-  hasNextPage: boolean;
-
-  @ApiProperty({
-    example: false,
-    description: 'Whether there is a previous page',
-  })
-  hasPreviousPage: boolean;
-}
+export class StockListResponseDto extends CursorPaginatedResponseDto<StockDto> {}
 
 // DTO for vendor API response
 export class VendorStockDto {

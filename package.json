@@ -24,7 +24,8 @@
     "docker:prod": "docker compose up",
     "docker:prod:build": "docker compose up --build",
     "docker:prod:down": "docker compose down",
-    "prepare": "husky"
+    "prepare": "husky",
+    "seed-portfolio": "ts-node scripts/seed-portfolio.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.0",
