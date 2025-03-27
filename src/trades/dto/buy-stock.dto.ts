@@ -12,10 +12,10 @@ export class BuyStockDto {
   @Max(1000000)
   @Transform(({ value }: TransformFnParams) => {
     if (typeof value === 'string') {
-      return parseFloat(parseFloat(value).toFixed(2));
+      return parseFloat(parseFloat(value).toFixed(4));
     }
     if (typeof value === 'number') {
-      return parseFloat(value.toFixed(2));
+      return parseFloat(value.toFixed(4));
     }
     return 0; // Default fallback, validation will catch this as invalid
   })

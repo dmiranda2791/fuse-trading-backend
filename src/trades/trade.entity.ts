@@ -26,7 +26,7 @@ export class Trade {
   @Column()
   symbol: string;
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column('decimal', { precision: 10, scale: 4 })
   price: number;
 
   @Column('integer')

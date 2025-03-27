@@ -30,11 +30,11 @@ import { HealthModule } from './health/health.module';
     PaginationService,
     {
       provide: APP_FILTER,
-      useClass: HttpExceptionFilter,
+      useClass: AllExceptionsFilter,
     },
     {
       provide: APP_FILTER,
-      useClass: AllExceptionsFilter,
+      useClass: HttpExceptionFilter,
     },
     {
       provide: APP_PIPE,

@@ -53,10 +53,12 @@ export class TradesService {
       timestamp: new Date(),
     });
 
+    this.logger.debug('Saving initial trade record to database');
     await this.tradeRepository.save(trade);
 
     try {
       // Get current price from the stock service
+      this.logger.debug('Looking up current stock price');
       const stock = await this.stocksService.getStockBySymbol(symbol);
 
       // Check if price is within the acceptable range (±2%)
@@ -69,10 +71,13 @@ export class TradesService {
         const lowerBound = stock.price * (1 - this.priceTolerancePercent / 100);
         const upperBound = stock.price * (1 + this.priceTolerancePercent / 100);
 
+        this.logger.debug(
+          'Price validation failed, updating trade status to FAILED',
+        );
         await this.updateTradeStatus(
           trade.id,
           TradeStatus.FAILED,
-          `Price out of acceptable range. Current price: $${stock.price}, acceptable range: $${lowerBound.toFixed(2)} - $${upperBound.toFixed(2)}`,
+          `Price out of acceptable range. Current price: $${stock.price}, acceptable range: $${lowerBound.toFixed(4)} - $${upperBound.toFixed(4)}`,
         );
 
         throw new BadRequestException({
@@ -82,20 +87,24 @@ export class TradesService {
             providedPrice: buyStockDto.price,
             currentPrice: stock.price,
             allowedRange: [
-              Number(lowerBound.toFixed(2)),
-              Number(upperBound.toFixed(2)),
+              Number(lowerBound.toFixed(4)),
+              Number(upperBound.toFixed(4)),
             ],
           },
         });
       }
 
       // Execute trade via vendor API
+      this.logger.debug('Executing trade with vendor API');
       const buyResponse = await this.tradesHttpService.buyStock(
         symbol,
         buyStockDto,
       );
 
       if (buyResponse.success === false) {
+        this.logger.debug(
+          'Vendor API rejected trade, updating trade status to FAILED',
+        );
         await this.updateTradeStatus(
           trade.id,
           TradeStatus.FAILED,
@@ -110,9 +119,11 @@ export class TradesService {
       }
 
       // Update trade status to SUCCESS
+      this.logger.debug('Trade successful, updating trade status to SUCCESS');
       await this.updateTradeStatus(trade.id, TradeStatus.SUCCESS);
 
       // Update user's portfolio
+      this.logger.debug('Updating user portfolio');
       await this.portfolioService.updatePortfolio(
         userId,
         symbol,
@@ -120,16 +131,20 @@ export class TradesService {
       );
 
       // Return the updated trade
+      this.logger.debug('Retrieving final trade record for response');
       const updatedTrade = await this.tradeRepository.findOne({
         where: { id: trade.id },
       });
+
       if (!updatedTrade) {
         throw new NotFoundException(`Trade with ID ${trade.id} not found`);
       }
 
+      this.logger.debug('Trade process completed successfully');
       return this.mapToTradeResponseDto(updatedTrade);
     } catch (error) {
       // If the trade status hasn't been updated yet, update it now
+      this.logger.debug('Processing error in trade execution');
       const currentTrade = await this.tradeRepository.findOne({
         where: { id: trade.id },
       });

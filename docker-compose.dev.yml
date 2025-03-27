@@ -4,13 +4,14 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     ports:
-      - "3000:3000"
+      - '3000:3000'
+      - '9229:9229'
     volumes:
       - .:/app
       - /app/node_modules
     env_file:
       - .env
-    command: npm run start:dev
+    command: npm run start:debug
     depends_on:
       db:
         condition: service_healthy
@@ -32,12 +33,12 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - db_dev_data:/var/lib/postgresql/data
       - ./docker/init-scripts:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -46,11 +47,11 @@ services:
     image: redis:alpine
     restart: always
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_dev_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -58,9 +59,9 @@ services:
   mailhog:
     image: mailhog/mailhog
     ports:
-      - "8025:8025" # Web UI
-      - "1025:1025" # SMTP
+      - '8025:8025' # Web UI
+      - '1025:1025' # SMTP
 
 volumes:
   db_dev_data:
-  redis_dev_data: 
+  redis_dev_data:

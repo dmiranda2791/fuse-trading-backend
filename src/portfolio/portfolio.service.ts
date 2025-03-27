@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Portfolio } from './portfolio.entity';
@@ -9,6 +9,8 @@ import { Cache } from 'cache-manager';
 
 @Injectable()
 export class PortfolioService {
+  private readonly logger = new Logger(PortfolioService.name);
+
   constructor(
     @InjectRepository(Portfolio)
     private portfolioRepository: Repository<Portfolio>,
@@ -77,7 +79,12 @@ export class PortfolioService {
     symbol: string,
     quantity: number,
   ): Promise<void> {
+    this.logger.debug(
+      `Starting portfolio update for user ${userId}, symbol ${symbol}, quantity ${quantity}`,
+    );
+
     // Check if user already has this stock
+    this.logger.debug('Finding existing holding in database');
     const existingHolding = await this.portfolioRepository.findOne({
       where: { userId, symbol },
     });
@@ -88,13 +95,16 @@ export class PortfolioService {
 
       if (existingHolding.quantity <= 0) {
         // Remove the holding if quantity becomes zero or negative
+        this.logger.debug('Removing holding (quantity <= 0)');
         await this.portfolioRepository.remove(existingHolding);
       } else {
         // Save the updated quantity
+        this.logger.debug('Saving updated holding quantity');
         await this.portfolioRepository.save(existingHolding);
       }
     } else if (quantity > 0) {
       // Create new holding only if quantity is positive
+      this.logger.debug('Creating new holding');
       const newHolding = this.portfolioRepository.create({
         userId,
         symbol,
@@ -104,6 +114,9 @@ export class PortfolioService {
     }
 
     // Invalidate cache for this user's portfolio
+    this.logger.debug('Invalidating portfolio cache');
     await this.cacheManager.del(`portfolio:${userId}`);
+
+    this.logger.debug('Portfolio update completed');
   }
 }

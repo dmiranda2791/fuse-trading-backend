@@ -63,12 +63,16 @@ export class TradesHttpService {
           `Executing buy order for ${symbol}, attempt: ${attempt}`,
         );
 
+        this.logger.debug('Sending HTTP request to vendor API');
         const response = await this.httpClient.post<VendorApiResponse>(
           url,
           buyStockDto,
         );
 
+        this.logger.debug('Received response from vendor API');
+
         if (response.status === 200 && response.data) {
+          this.logger.debug('Vendor API request successful');
           return {
             status: response.status,
             success: true,
@@ -77,6 +81,7 @@ export class TradesHttpService {
           };
         }
 
+        this.logger.debug('Unexpected response format from vendor API');
         throw new Error('Unexpected response format from vendor API');
       } catch (error) {
         const isLastAttempt = attempt === this.maxRetries;

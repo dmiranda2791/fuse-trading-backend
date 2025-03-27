@@ -102,25 +102,25 @@ The application uses **TypeORM** with **PostgreSQL** for data persistence. Below
 ### `Stock` Entity
 
 ```typescript
-@Entity("stocks")
+@Entity('stocks')
 export class Stock {
-  @PrimaryColumn({ name: "symbol" })
+  @PrimaryColumn({ name: 'symbol' })
   symbol: string;
 
-  @Column({ name: "name" })
+  @Column({ name: 'name' })
   name: string;
 
-  @Column("decimal", { precision: 10, scale: 2, name: "price" })
+  @Column('decimal', { precision: 10, scale: 2, name: 'price' })
   price: number;
 
   @Index()
-  @Column({ nullable: true, name: "last_fetched_at" })
+  @Column({ nullable: true, name: 'last_fetched_at' })
   lastFetchedAt: Date;
 
-  @CreateDateColumn({ name: "created_at" })
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: "updated_at" })
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }
 ```
@@ -128,28 +128,28 @@ export class Stock {
 ### `Portfolio` Entity
 
 ```typescript
-@Entity("portfolios")
+@Entity('portfolios')
 export class Portfolio {
-  @PrimaryGeneratedColumn("uuid", { name: "id" })
+  @PrimaryGeneratedColumn('uuid', { name: 'id' })
   id: string;
 
   @Index()
-  @Column({ name: "user_id" })
+  @Column({ name: 'user_id' })
   userId: string;
 
-  @Column({ name: "symbol" })
+  @Column({ name: 'symbol' })
   symbol: string;
 
-  @Column("integer", { name: "quantity" })
+  @Column('integer', { name: 'quantity' })
   quantity: number;
 
-  @CreateDateColumn({ name: "created_at" })
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: "updated_at" })
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @Unique(["user_id", "symbol"])
+  @Unique(['user_id', 'symbol'])
   userStockConstraint: any;
 }
 ```
@@ -157,54 +157,54 @@ export class Portfolio {
 ### `Trade` Entity
 
 ```typescript
-@Entity("trades")
+@Entity('trades')
 export class Trade {
-  @PrimaryGeneratedColumn("uuid", { name: "id" })
+  @PrimaryGeneratedColumn('uuid', { name: 'id' })
   id: string;
 
   @Index()
-  @Column({ name: "user_id" })
+  @Column({ name: 'user_id' })
   userId: string;
 
-  @Column({ name: "symbol" })
+  @Column({ name: 'symbol' })
   symbol: string;
 
-  @Column("decimal", { precision: 10, scale: 2, name: "price" })
+  @Column('decimal', { precision: 10, scale: 2, name: 'price' })
   price: number;
 
-  @Column("integer", { name: "quantity" })
+  @Column('integer', { name: 'quantity' })
   quantity: number;
 
   @Column({
-    type: "enum",
+    type: 'enum',
     enum: TradeStatus,
     default: TradeStatus.PENDING,
-    name: "status",
+    name: 'status',
   })
   status: TradeStatus;
 
   @Index()
-  @Column({ name: "timestamp" })
+  @Column({ name: 'timestamp' })
   timestamp: Date;
 
-  @Column({ nullable: true, name: "reason" })
+  @Column({ nullable: true, name: 'reason' })
   reason: string;
 
-  @CreateDateColumn({ name: "created_at" })
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: "updated_at" })
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @Index(["user_id", "timestamp"])
+  @Index(['user_id', 'timestamp'])
   userTimestampIndex: any;
 }
 
 // Enum for Trade Status
 export enum TradeStatus {
-  PENDING = "pending",
-  SUCCESS = "success",
-  FAILED = "failed",
+  PENDING = 'pending',
+  SUCCESS = 'success',
+  FAILED = 'failed',
 }
 ```
 
@@ -263,15 +263,15 @@ export enum TradeStatus {
     error(message: string, trace: string, context?: string) {
       console.error(
         JSON.stringify({
-          level: "ERROR",
+          level: 'ERROR',
           message,
           trace,
           context,
           timestamp: new Date().toISOString(),
-        })
+        }),
       );
 
-      if (process.env.ENABLE_SENTRY === "true") {
+      if (process.env.ENABLE_SENTRY === 'true') {
         Sentry.captureException(new Error(message), {
           extra: { trace, context },
         });
@@ -415,24 +415,24 @@ QUEUE_CONCURRENCY=10
 **Implementation**:
 
 ```typescript
-@Controller("health")
+@Controller('health')
 export class HealthController {
   constructor(
     private health: HealthCheckService,
     private db: TypeOrmHealthIndicator,
-    private redis: RedisHealthIndicator
+    private redis: RedisHealthIndicator,
   ) {}
 
   @Get()
   @HealthCheck()
   check() {
     return this.health.check([
-      () => this.db.pingCheck("database"),
-      () => this.redis.pingCheck("redis"),
+      () => this.db.pingCheck('database'),
+      () => this.redis.pingCheck('redis'),
       () =>
         this.http.pingCheck(
-          "vendor-api",
-          "https://api.challenge.fusefinance.com/health"
+          'vendor-api',
+          'https://api.challenge.fusefinance.com/health',
         ),
     ]);
   }
@@ -552,33 +552,33 @@ The API is documented using **Swagger/OpenAPI** specification:
 **Example Implementation**:
 
 ```typescript
-@ApiTags("stocks")
-@Controller("stocks")
+@ApiTags('stocks')
+@Controller('stocks')
 export class StockController {
-  @ApiOperation({ summary: "Get all stocks" })
+  @ApiOperation({ summary: 'Get all stocks' })
   @ApiQuery({
-    name: "page",
+    name: 'page',
     required: false,
     type: Number,
-    description: "Page number (starts at 1)",
+    description: 'Page number (starts at 1)',
   })
   @ApiQuery({
-    name: "limit",
+    name: 'limit',
     required: false,
     type: Number,
-    description: "Items per page (default: 25)",
+    description: 'Items per page (default: 25)',
   })
   @ApiResponse({
     status: 200,
-    description: "List of stocks",
+    description: 'List of stocks',
     type: StockListResponseDto,
   })
-  @ApiResponse({ status: 400, description: "Invalid pagination parameters" })
-  @ApiResponse({ status: 500, description: "Internal server error" })
+  @ApiResponse({ status: 400, description: 'Invalid pagination parameters' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @Get()
   async getStocks(
-    @Query("page", new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query("limit", new DefaultValuePipe(25), ParseIntPipe) limit: number
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(25), ParseIntPipe) limit: number,
   ): Promise<StockListResponseDto> {
     // Implementation
   }
@@ -630,7 +630,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const errorResponse: ErrorResponse = {
       statusCode: status,
       errorCode: exceptionResponse.errorCode || `SYS_${status}`,
-      message: exceptionResponse.message || "Internal server error",
+      message: exceptionResponse.message || 'Internal server error',
       timestamp: new Date().toISOString(),
       path: request.url,
       details: exceptionResponse.details,
@@ -678,7 +678,7 @@ export class BuyStockDto {
   @IsNumber()
   @IsPositive()
   @Max(1000000)
-  @Transform(({ value }) => parseFloat(parseFloat(value).toFixed(2)))
+  @Transform(({ value }) => parseFloat(parseFloat(value).toFixed(4)))
   price: number;
 
   @ApiProperty({ example: 5, description: 'The quantity to buy' })
@@ -777,14 +777,14 @@ The project is configured for an optimal local development experience:
 
 ```yaml
 # docker-compose.dev.yml
-version: "3.8"
+version: '3.8'
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile.dev
     ports:
-      - "3000:3000"
+      - '3000:3000'
     volumes:
       - .:/app
       - /app/node_modules
@@ -805,7 +805,7 @@ services:
       POSTGRES_PASSWORD: pass
       POSTGRES_DB: fuse_dev
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - db_dev_data:/var/lib/postgresql/data
 
@@ -813,7 +813,7 @@ services:
     image: redis:alpine
     restart: always
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_dev_data:/data
 
