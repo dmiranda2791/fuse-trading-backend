@@ -13,5 +13,6 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "eslint.validate": ["typescript", "javascript"],
-  "eslint.format.enable": true
+  "eslint.format.enable": true,
+  "cSpell.words": ["Mailgun"]
 }

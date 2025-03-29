@@ -2,33 +2,31 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PortfolioService } from './portfolio.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Portfolio } from './portfolio.entity';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { Cache } from 'cache-manager';
 
-type MockType<T> = {
-  [P in keyof T]?: jest.Mock<any, any>;
-};
+// Define the cursor type to match what the service uses
+interface PortfolioCursor {
+  offset: number;
+}
 
 describe('PortfolioService', () => {
   let service: PortfolioService;
-  let mockRepository: MockType<Repository<Portfolio>>;
-  let mockCacheManager: MockType<Cache>;
+  let mockRepository: jest.Mocked<
+    Pick<
+      Repository<Portfolio>,
+      'find' | 'findOne' | 'findAndCount' | 'create' | 'save' | 'remove'
+    >
+  >;
 
   beforeEach(async () => {
     mockRepository = {
       find: jest.fn(),
       findOne: jest.fn(),
+      findAndCount: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
       remove: jest.fn(),
-    };
-
-    mockCacheManager = {
-      get: jest.fn(),
-      set: jest.fn(),
-      del: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -37,10 +35,6 @@ describe('PortfolioService', () => {
         {
           provide: getRepositoryToken(Portfolio),
           useValue: mockRepository,
-        },
-        {
-          provide: CACHE_MANAGER,
-          useValue: mockCacheManager,
         },
       ],
     }).compile();
@@ -53,58 +47,107 @@ describe('PortfolioService', () => {
   });
 
   describe('getUserPortfolio', () => {
-    it('should return cached portfolio if available', async () => {
-      const cachedPortfolio = {
-        userId: 'user123',
-        holdings: [{ symbol: 'AAPL', quantity: 10 }],
-        totalStocks: 1,
-        totalShares: 10,
-      };
-      mockCacheManager.get!.mockResolvedValue(cachedPortfolio);
-
-      const result = await service.getUserPortfolio('user123');
-
-      expect(mockCacheManager.get).toHaveBeenCalledWith('portfolio:user123');
-      expect(mockRepository.find).not.toHaveBeenCalled();
-      expect(result).toEqual(cachedPortfolio);
-    });
-
-    it('should fetch portfolio from database and cache it if not cached', async () => {
+    it('should return paginated portfolio items', async () => {
       const userId = 'user123';
-      const holdings = [
-        { userId, symbol: 'AAPL', quantity: 10 },
-        { userId, symbol: 'MSFT', quantity: 5 },
+      const portfolioItems: Portfolio[] = [
+        { userId, symbol: 'AAPL', quantity: 10 } as Portfolio,
+        { userId, symbol: 'MSFT', quantity: 5 } as Portfolio,
       ];
 
-      mockCacheManager.get!.mockResolvedValue(null);
-      mockRepository.find!.mockResolvedValue(holdings);
-
-      const expectedResponse = {
-        userId,
-        holdings: [
-          { symbol: 'AAPL', quantity: 10 },
-          { symbol: 'MSFT', quantity: 5 },
-        ],
-        totalStocks: 2,
-        totalShares: 15,
-      };
+      mockRepository.findAndCount.mockResolvedValue([portfolioItems, 2]);
 
       const result = await service.getUserPortfolio(userId);
 
-      expect(mockCacheManager.get).toHaveBeenCalledWith(`portfolio:${userId}`);
-      expect(mockRepository.find).toHaveBeenCalledWith({ where: { userId } });
-      expect(mockCacheManager.set).toHaveBeenCalledWith(
-        `portfolio:${userId}`,
-        expectedResponse,
-        15 * 60 * 1000,
+      expect(mockRepository.findAndCount).toHaveBeenCalledWith({
+        where: { userId },
+        order: { symbol: 'ASC' },
+        skip: 0,
+        take: 11, // pageSize + 1
+      });
+
+      expect(result).toEqual({
+        items: [
+          { userId, symbol: 'AAPL', quantity: 10 },
+          { userId, symbol: 'MSFT', quantity: 5 },
+        ],
+        nextToken: null,
+      });
+    });
+
+    it('should handle pagination with nextToken', async () => {
+      const userId = 'user123';
+      const offset = 10;
+      const nextToken = Buffer.from(JSON.stringify({ offset })).toString(
+        'base64',
       );
-      expect(result).toEqual(expectedResponse);
+
+      const portfolioItems: Portfolio[] = [
+        { userId, symbol: 'NFLX', quantity: 8 } as Portfolio,
+        { userId, symbol: 'TSLA', quantity: 3 } as Portfolio,
+      ];
+
+      mockRepository.findAndCount.mockResolvedValue([portfolioItems, 12]);
+
+      const result = await service.getUserPortfolio(userId, nextToken);
+
+      expect(mockRepository.findAndCount).toHaveBeenCalledWith({
+        where: { userId },
+        order: { symbol: 'ASC' },
+        skip: offset,
+        take: 11, // pageSize + 1
+      });
+
+      expect(result).toEqual({
+        items: [
+          { userId, symbol: 'NFLX', quantity: 8 },
+          { userId, symbol: 'TSLA', quantity: 3 },
+        ],
+        nextToken: null,
+      });
+    });
+
+    it('should return nextToken when there are more items', async () => {
+      const userId = 'user123';
+      // Create 11 items (one more than pageSize)
+      const portfolioItems: Portfolio[] = Array(11)
+        .fill(null)
+        .map(
+          (_, i) =>
+            ({
+              userId,
+              symbol: `SYM${i}`,
+              quantity: i + 1,
+            }) as Portfolio,
+        );
+
+      mockRepository.findAndCount.mockResolvedValue([portfolioItems, 11]);
+
+      const result = await service.getUserPortfolio(userId);
+
+      // Only 10 items should be returned
+      expect(result.items.length).toBe(10);
+      // And there should be a nextToken
+      expect(result.nextToken).not.toBeNull();
+
+      // Decode the token to verify it's correct
+      const decodedToken = JSON.parse(
+        Buffer.from(result.nextToken as string, 'base64').toString('utf-8'),
+      ) as PortfolioCursor;
+      expect(decodedToken).toEqual({ offset: 10 });
+    });
+
+    it('should throw BadRequestException for invalid nextToken', async () => {
+      const userId = 'user123';
+      const invalidToken = 'not-a-valid-token';
+
+      await expect(
+        service.getUserPortfolio(userId, invalidToken),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException if user has no holdings', async () => {
       const userId = 'nonexistent';
-      mockCacheManager.get!.mockResolvedValue(null);
-      mockRepository.find!.mockResolvedValue([]);
+      mockRepository.findAndCount.mockResolvedValue([[], 0]);
 
       await expect(service.getUserPortfolio(userId)).rejects.toThrow(
         NotFoundException,
@@ -117,10 +160,10 @@ describe('PortfolioService', () => {
       const userId = 'user123';
       const symbol = 'AAPL';
       const quantity = 10;
-      const newHolding = { userId, symbol, quantity };
+      const newHolding = { userId, symbol, quantity } as Portfolio;
 
-      mockRepository.findOne!.mockResolvedValue(null);
-      mockRepository.create!.mockReturnValue(newHolding);
+      mockRepository.findOne.mockResolvedValue(null);
+      mockRepository.create.mockReturnValue(newHolding);
 
       await service.updatePortfolio(userId, symbol, quantity);
 
@@ -133,7 +176,6 @@ describe('PortfolioService', () => {
         quantity,
       });
       expect(mockRepository.save).toHaveBeenCalledWith(newHolding);
-      expect(mockCacheManager.del).toHaveBeenCalledWith(`portfolio:${userId}`);
     });
 
     it('should update existing holding if user already has the stock', async () => {
@@ -141,15 +183,18 @@ describe('PortfolioService', () => {
       const symbol = 'AAPL';
       const existingQuantity = 5;
       const addQuantity = 10;
-      const existingHolding = { userId, symbol, quantity: existingQuantity };
+      const existingHolding = {
+        userId,
+        symbol,
+        quantity: existingQuantity,
+      } as Portfolio;
 
-      mockRepository.findOne!.mockResolvedValue(existingHolding);
+      mockRepository.findOne.mockResolvedValue(existingHolding);
 
       await service.updatePortfolio(userId, symbol, addQuantity);
 
       expect(existingHolding.quantity).toBe(existingQuantity + addQuantity);
       expect(mockRepository.save).toHaveBeenCalledWith(existingHolding);
-      expect(mockCacheManager.del).toHaveBeenCalledWith(`portfolio:${userId}`);
     });
 
     it('should remove holding if quantity becomes zero or negative', async () => {
@@ -157,15 +202,18 @@ describe('PortfolioService', () => {
       const symbol = 'AAPL';
       const existingQuantity = 5;
       const subtractQuantity = -5; // This will make total 0
-      const existingHolding = { userId, symbol, quantity: existingQuantity };
+      const existingHolding = {
+        userId,
+        symbol,
+        quantity: existingQuantity,
+      } as Portfolio;
 
-      mockRepository.findOne!.mockResolvedValue(existingHolding);
+      mockRepository.findOne.mockResolvedValue(existingHolding);
 
       await service.updatePortfolio(userId, symbol, subtractQuantity);
 
       expect(existingHolding.quantity).toBe(0);
       expect(mockRepository.remove).toHaveBeenCalledWith(existingHolding);
-      expect(mockCacheManager.del).toHaveBeenCalledWith(`portfolio:${userId}`);
     });
   });
 });

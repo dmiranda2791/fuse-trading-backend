@@ -112,6 +112,29 @@ npm install
 npm run start:dev
 ```
 
+## AWS Deployment
+
+This project includes infrastructure configuration for deploying to AWS App Runner with RDS (PostgreSQL) and ElastiCache (Redis). The deployment is automated through GitHub Actions and Terraform.
+
+### Deployment Overview
+
+- **App Runner**: Hosts the containerized application
+- **RDS**: Provides PostgreSQL database
+- **ElastiCache**: Provides Redis cache
+- **ECR**: Stores Docker images
+- **GitHub Actions**: Handles CI/CD pipeline
+
+### Deployment Instructions
+
+For detailed deployment instructions, see the [Deployment Guide](DEPLOYMENT.md).
+
+Quick start:
+
+1. Set up AWS credentials
+2. Configure GitHub repository secrets
+3. Apply Terraform configuration
+4. Push to main branch to trigger the CI/CD pipeline
+
 ## Data Seeding
 
 To quickly populate a user's portfolio with test data, the project includes a seed script that automatically purchases random stocks:
@@ -147,6 +170,7 @@ The following documentation is available in the `docs` directory:
 
 - [Architecture Report](REPORT.md) - Detailed explanation of system architecture and design decisions
 - [Implementation Roadmap](docs/Implementation%20Roadmap.md) - Step-by-step implementation plan
+- [Deployment Guide](DEPLOYMENT.md) - Instructions for AWS App Runner deployment
 
 ### High-Level Architecture
 
@@ -196,6 +220,8 @@ See `.env.example` for a complete list of environment variables.
 - `src/reports/` - Report generation and emailing
 - `src/common/` - Shared utilities, filters, and interceptors
 - `src/config/` - Configuration handling
+- `terraform/` - AWS infrastructure as code
+- `.github/workflows/` - CI/CD pipeline configuration
 
 ## License
 

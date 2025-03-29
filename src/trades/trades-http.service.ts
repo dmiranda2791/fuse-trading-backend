@@ -5,7 +5,7 @@ import { BuyStockDto } from './dto/buy-stock.dto';
 
 interface VendorApiResponse {
   status: number;
-  data?: any;
+  data?: unknown;
   message?: string;
 }
 
@@ -13,7 +13,7 @@ interface BuyResponse {
   status: number;
   success: boolean;
   message: string;
-  data?: Record<string, any>;
+  data?: VendorApiResponse;
 }
 
 @Injectable()

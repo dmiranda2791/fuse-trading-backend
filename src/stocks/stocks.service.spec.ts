@@ -11,7 +11,7 @@ describe('StocksService', () => {
   let service: StocksService;
   let _stocksHttpService: StocksHttpService;
   let _stockRepository: Repository<Stock>;
-  let _cacheManager: any;
+  let _cacheManager: Cache;
 
   const mockStocksHttpService = {
     getStocks: jest.fn(),
@@ -49,7 +49,7 @@ describe('StocksService', () => {
     service = module.get<StocksService>(StocksService);
     _stocksHttpService = module.get<StocksHttpService>(StocksHttpService);
     _stockRepository = module.get<Repository<Stock>>(getRepositoryToken(Stock));
-    _cacheManager = module.get<unknown>(CACHE_MANAGER);
+    _cacheManager = module.get<Cache>(CACHE_MANAGER);
   });
 
   afterEach(() => {
@@ -108,7 +108,7 @@ describe('StocksService', () => {
 
       // No stock found in vendor API
       jest
-        .spyOn(service as any, 'fetchStocksFromVendor')
+        .spyOn(service, 'fetchStocksFromVendor')
         .mockResolvedValue([
           { symbol: 'MSFT', name: 'Microsoft', price: 300.1 },
         ]);

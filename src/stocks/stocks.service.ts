@@ -92,7 +92,7 @@ export class StocksService {
   /**
    * Fetch all stocks from vendor API (internal method)
    */
-  private async fetchStocksFromVendor(): Promise<StockDto[]> {
+  async fetchStocksFromVendor(): Promise<StockDto[]> {
     const cacheKey = 'stocks:all';
     const cachedStocks = await this.cacheManager.get<StockDto[]>(cacheKey);
 

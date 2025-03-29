@@ -2,13 +2,20 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EmailService, MailOptions } from './email.service';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
-import axios from 'axios';
 import * as fs from 'fs';
 import { compile } from 'handlebars';
 
+// Define types for better type safety
+interface MockMailgunMessages {
+  create: jest.Mock;
+}
+
+interface MockMailgunClient {
+  messages: MockMailgunMessages;
+}
+
 // Mock dependencies
 jest.mock('nodemailer');
-jest.mock('axios');
 jest.mock('fs', () => ({
   promises: {
     readFile: jest.fn(),
@@ -18,10 +25,29 @@ jest.mock('handlebars', () => ({
   compile: jest.fn(),
 }));
 
+// Mock FormData
+jest.mock('form-data', () => {
+  return jest.fn().mockImplementation(() => ({}));
+});
+
+// Mock Mailgun
+jest.mock('mailgun.js', () => {
+  return jest.fn().mockImplementation(() => {
+    return {
+      client: jest.fn().mockReturnValue({
+        messages: {
+          create: jest.fn(),
+        },
+      }),
+    };
+  });
+});
+
 describe('EmailService', () => {
   let service: EmailService;
   let mockConfigService: Partial<ConfigService>;
   let mockTransporter: jest.Mocked<nodemailer.Transporter>;
+  let mockMailgunClient: MockMailgunClient;
 
   // Mock data
   const mockFrom = 'test@example.com';
@@ -38,13 +64,28 @@ describe('EmailService', () => {
     messageId: 'test-message-id',
   };
 
+  // Mock Mailgun response
+  const mockMailgunResponse = {
+    id: 'mailgun-message-id',
+    message: 'Queued. Thank you.',
+  };
+
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     // Create mock objects
     mockTransporter = {
       sendMail: jest.fn().mockResolvedValue(mockSendMailResponse),
     } as unknown as jest.Mocked<nodemailer.Transporter>;
 
     (nodemailer.createTransport as jest.Mock).mockReturnValue(mockTransporter);
+
+    // Mock Mailgun client
+    mockMailgunClient = {
+      messages: {
+        create: jest.fn().mockResolvedValue(mockMailgunResponse),
+      },
+    };
 
     // Using a partial mock for ConfigService
     mockConfigService = {
@@ -55,7 +96,7 @@ describe('EmailService', () => {
           case 'email.recipients':
             return mockRecipients;
           case 'mailgun.enabled':
-            return false;
+            return false; // Will be overridden in specific tests
           case 'mailgun.domain':
             return 'test.domain.com';
           case 'mailgun.apiKey':
@@ -138,7 +179,7 @@ describe('EmailService', () => {
 
   describe('sendWithMailgun', () => {
     beforeEach(() => {
-      // Override config to enable mailgun
+      // Override config to enable mailgun and create a new service instance
       (mockConfigService.get as jest.Mock).mockImplementation((key: string) => {
         switch (key) {
           case 'email.from':
@@ -146,7 +187,7 @@ describe('EmailService', () => {
           case 'email.recipients':
             return mockRecipients;
           case 'mailgun.enabled':
-            return true;
+            return true; // Enable Mailgun
           case 'mailgun.domain':
             return 'test.domain.com';
           case 'mailgun.apiKey':
@@ -161,12 +202,16 @@ describe('EmailService', () => {
       // Recreate service with mailgun enabled
       service = new EmailService(mockConfigService as ConfigService);
 
-      // Mock axios post
-      (axios.post as jest.Mock).mockResolvedValue({
-        data: {
-          id: 'mailgun-message-id',
-          message: 'Queued. Thank you.',
-        },
+      // Manually set the mailgunClient property for tests
+      Object.defineProperty(service, 'mailgunClient', {
+        value: mockMailgunClient,
+        writable: true,
+      });
+
+      // Set useMailgun to true
+      Object.defineProperty(service, 'useMailgun', {
+        value: true,
+        writable: false,
       });
     });
 
@@ -180,8 +225,15 @@ describe('EmailService', () => {
       const result = await service.sendEmail(mailOptions);
 
       expect(result).toBe(true);
-      // Verify axios.post was called without checking mock.calls directly
-      expect((axios.post as jest.Mock).mock.calls.length).toBeGreaterThan(0);
+      expect(mockMailgunClient.messages.create).toHaveBeenCalledWith(
+        'test.domain.com',
+        {
+          from: mockFrom,
+          to: mailOptions.to,
+          subject: mailOptions.subject,
+          html: mailOptions.html,
+        },
+      );
     });
 
     it('should handle errors from mailgun', async () => {
@@ -191,11 +243,96 @@ describe('EmailService', () => {
         html: '<p>Test content</p>',
       };
 
-      (axios.post as jest.Mock).mockRejectedValueOnce(new Error('API error'));
+      mockMailgunClient.messages.create.mockRejectedValueOnce(
+        new Error('API error'),
+      );
 
       const result = await service.sendEmail(mailOptions);
 
       expect(result).toBe(false);
+    });
+
+    it('should handle array of recipients', async () => {
+      const mailOptions: MailOptions = {
+        to: ['recipient1@example.com', 'recipient2@example.com'],
+        subject: 'Test Email',
+        html: '<p>Test content</p>',
+      };
+
+      const result = await service.sendEmail(mailOptions);
+
+      expect(result).toBe(true);
+      expect(mockMailgunClient.messages.create).toHaveBeenCalledWith(
+        'test.domain.com',
+        {
+          from: mockFrom,
+          to: 'recipient1@example.com,recipient2@example.com',
+          subject: mailOptions.subject,
+          html: mailOptions.html,
+        },
+      );
+    });
+
+    it('should include text content when provided', async () => {
+      const mailOptions: MailOptions = {
+        to: 'recipient@example.com',
+        subject: 'Test Email',
+        html: '<p>Test content</p>',
+        text: 'Plain text content',
+      };
+
+      const result = await service.sendEmail(mailOptions);
+
+      expect(result).toBe(true);
+      expect(mockMailgunClient.messages.create).toHaveBeenCalledWith(
+        'test.domain.com',
+        {
+          from: mockFrom,
+          to: mailOptions.to,
+          subject: mailOptions.subject,
+          html: mailOptions.html,
+          text: mailOptions.text,
+        },
+      );
+    });
+
+    it('should include attachments when provided', async () => {
+      const mailOptions: MailOptions = {
+        to: 'recipient@example.com',
+        subject: 'Test Email',
+        html: '<p>Test content</p>',
+        attachments: [
+          {
+            filename: 'test.pdf',
+            content: Buffer.from('test content'),
+            contentType: 'application/pdf',
+          },
+        ],
+      };
+
+      const result = await service.sendEmail(mailOptions);
+
+      expect(result).toBe(true);
+
+      // Ensure attachments are defined before testing
+      if (mailOptions.attachments) {
+        expect(mockMailgunClient.messages.create).toHaveBeenCalledWith(
+          'test.domain.com',
+          {
+            from: mockFrom,
+            to: mailOptions.to,
+            subject: mailOptions.subject,
+            html: mailOptions.html,
+            attachment: [
+              {
+                data: mailOptions.attachments[0].content,
+                filename: mailOptions.attachments[0].filename,
+                contentType: mailOptions.attachments[0].contentType,
+              },
+            ],
+          },
+        );
+      }
     });
   });
 

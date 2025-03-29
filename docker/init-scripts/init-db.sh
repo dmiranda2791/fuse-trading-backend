@@ -34,7 +34,7 @@ setup_database() {
   
   echo "Setting up database '$db' with user '$user'"
   
-  # Execute the schema.sql script with variables
+  # Execute the init_db.sql script to create database and user
   # Use PostgreSQL variables to avoid shell variable expansion issues
   # Ignoring errors related to "already exists" (code 42P04 and 42710)
   PGPASSWORD=$POSTGRES_PASSWORD psql -v ON_ERROR_STOP=0 \
@@ -43,16 +43,30 @@ setup_database() {
     -v DB_NAME="$db" \
     -v DB_USER="$user" \
     -v DB_PASSWORD="$password" \
-    -f /docker-entrypoint-initdb.d/schema.sql
+    -f /app/sql/init_db.sql
   
   # Check if database now exists
   if PGPASSWORD=$POSTGRES_PASSWORD psql -lqt --username "$POSTGRES_USER" | cut -d \| -f 1 | grep -qw "$db"; then
     echo "Database '$db' successfully created or already exists"
+    
+    # Now apply the schema.sql to set up tables
+    PGPASSWORD=$password psql -v ON_ERROR_STOP=1 \
+      --username "$user" \
+      --dbname "$db" \
+      -f /app/sql/schema.sql
+      
+    echo "Schema applied successfully to database '$db'"
   else
     echo "ERROR: Failed to create database '$db'"
     # Create it directly as a fallback
     PGPASSWORD=$POSTGRES_PASSWORD psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -c "CREATE DATABASE $db;"
     PGPASSWORD=$POSTGRES_PASSWORD psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -c "GRANT ALL PRIVILEGES ON DATABASE $db TO $user;"
+    
+    # Now apply the schema.sql
+    PGPASSWORD=$password psql -v ON_ERROR_STOP=1 \
+      --username "$user" \
+      --dbname "$db" \
+      -f /app/sql/schema.sql
   fi
 }
 

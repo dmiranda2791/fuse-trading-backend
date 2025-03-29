@@ -35,8 +35,9 @@ services:
     ports:
       - '5432:5432'
     volumes:
-      - db_dev_data:/var/lib/postgresql/data
+      - dev_db_data:/var/lib/postgresql/data
       - ./docker/init-scripts:/docker-entrypoint-initdb.d
+      - ./sql:/app/sql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 5s
@@ -49,7 +50,7 @@ services:
     ports:
       - '6379:6379'
     volumes:
-      - redis_dev_data:/data
+      - dev_redis_data:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -63,5 +64,5 @@ services:
       - '1025:1025' # SMTP
 
 volumes:
-  db_dev_data:
-  redis_dev_data:
+  dev_db_data:
+  dev_redis_data:

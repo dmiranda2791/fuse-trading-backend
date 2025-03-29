@@ -9,34 +9,31 @@ import { TradesHttpService } from './trades-http.service';
 import { Trade, TradeStatus } from './trade.entity';
 import { BuyStockDto } from './dto/buy-stock.dto';
 
-// Define a simpler mock repository type
-type MockType<T> = {
-  [P in keyof T]?: jest.Mock<any>;
-};
-
-// Create repository mock factory
-const createRepositoryMock = (): MockType<Repository<any>> => ({
-  create: jest.fn(),
-  save: jest.fn(),
-  findOne: jest.fn(),
-  update: jest.fn(),
-});
-
 describe('TradesService', () => {
   let service: TradesService;
-  let tradeRepository: MockType<Repository<Trade>>;
-  let stocksService: Partial<StocksService>;
-  let portfolioService: Partial<PortfolioService>;
-  let tradesHttpService: Partial<TradesHttpService>;
+  let tradeRepository: jest.Mocked<
+    Pick<Repository<Trade>, 'create' | 'save' | 'findOne' | 'update'>
+  >;
+  let stocksService: jest.Mocked<Pick<StocksService, 'getStockBySymbol'>>;
+  let portfolioService: jest.Mocked<Pick<PortfolioService, 'updatePortfolio'>>;
+  let tradesHttpService: jest.Mocked<Pick<TradesHttpService, 'buyStock'>>;
 
   beforeEach(async () => {
-    tradeRepository = createRepositoryMock();
+    tradeRepository = {
+      create: jest.fn(),
+      save: jest.fn(),
+      findOne: jest.fn(),
+      update: jest.fn(),
+    };
+
     stocksService = {
       getStockBySymbol: jest.fn(),
     };
+
     portfolioService = {
       updatePortfolio: jest.fn(),
     };
+
     tradesHttpService = {
       buyStock: jest.fn(),
     };
@@ -96,23 +93,21 @@ describe('TradesService', () => {
         message: 'Trade executed successfully',
       };
 
-      tradeRepository.create!.mockReturnValue(mockTrade);
-      tradeRepository.save!.mockResolvedValue(mockTrade);
-      tradeRepository.findOne!.mockResolvedValue({
+      tradeRepository.create.mockReturnValue(mockTrade);
+      tradeRepository.save.mockResolvedValue(mockTrade);
+      tradeRepository.findOne.mockResolvedValue({
         ...mockTrade,
         status: TradeStatus.SUCCESS,
-      });
+      } as Trade);
 
-      stocksService.getStockBySymbol = jest.fn().mockResolvedValue({
+      stocksService.getStockBySymbol.mockResolvedValue({
         symbol,
         name: 'Apple Inc.',
         price: 150, // Same price, so it's within range
       });
 
-      tradesHttpService.buyStock = jest
-        .fn()
-        .mockResolvedValue(mockSuccessResponse);
-      portfolioService.updatePortfolio = jest.fn().mockResolvedValue(undefined);
+      tradesHttpService.buyStock.mockResolvedValue(mockSuccessResponse);
+      portfolioService.updatePortfolio.mockResolvedValue(undefined);
 
       // Act
       const result = await service.buyStock(userId, symbol, buyStockDto);
@@ -173,10 +168,10 @@ describe('TradesService', () => {
         timestamp: new Date(),
       } as Trade;
 
-      tradeRepository.create!.mockReturnValue(mockTrade);
-      tradeRepository.save!.mockResolvedValue(mockTrade);
+      tradeRepository.create.mockReturnValue(mockTrade);
+      tradeRepository.save.mockResolvedValue(mockTrade);
 
-      stocksService.getStockBySymbol = jest.fn().mockResolvedValue({
+      stocksService.getStockBySymbol.mockResolvedValue({
         symbol,
         name: 'Apple Inc.',
         price: currentPrice,
@@ -219,18 +214,16 @@ describe('TradesService', () => {
         message: 'Vendor API error',
       };
 
-      tradeRepository.create!.mockReturnValue(mockTrade);
-      tradeRepository.save!.mockResolvedValue(mockTrade);
+      tradeRepository.create.mockReturnValue(mockTrade);
+      tradeRepository.save.mockResolvedValue(mockTrade);
 
-      stocksService.getStockBySymbol = jest.fn().mockResolvedValue({
+      stocksService.getStockBySymbol.mockResolvedValue({
         symbol,
         name: 'Apple Inc.',
         price: 150,
       });
 
-      tradesHttpService.buyStock = jest
-        .fn()
-        .mockResolvedValue(mockFailedResponse);
+      tradesHttpService.buyStock.mockResolvedValue(mockFailedResponse);
 
       // Act & Assert
       await expect(
@@ -271,26 +264,72 @@ describe('TradesService', () => {
         message: 'Trade executed successfully',
       };
 
-      tradeRepository.create!.mockReturnValue(mockTrade);
-      tradeRepository.save!.mockResolvedValue(mockTrade);
-      // Simulate updated trade not found
-      tradeRepository.findOne!.mockResolvedValue(null);
+      tradeRepository.create.mockReturnValue(mockTrade);
+      tradeRepository.save.mockResolvedValue(mockTrade);
+      // Return null to simulate trade not found
+      tradeRepository.findOne.mockResolvedValue(null);
 
-      stocksService.getStockBySymbol = jest.fn().mockResolvedValue({
+      stocksService.getStockBySymbol.mockResolvedValue({
         symbol,
         name: 'Apple Inc.',
         price: 150,
       });
 
-      tradesHttpService.buyStock = jest
-        .fn()
-        .mockResolvedValue(mockSuccessResponse);
-      portfolioService.updatePortfolio = jest.fn().mockResolvedValue(undefined);
+      tradesHttpService.buyStock.mockResolvedValue(mockSuccessResponse);
 
       // Act & Assert
       await expect(
         service.buyStock(userId, symbol, buyStockDto),
       ).rejects.toThrow(NotFoundException);
+      expect(tradeRepository.update).toHaveBeenCalledWith(
+        mockTrade.id,
+        expect.objectContaining({ status: TradeStatus.SUCCESS }),
+      );
+      expect(portfolioService.updatePortfolio).toHaveBeenCalled();
+    });
+
+    it('should handle unexpected errors during trade execution', async () => {
+      // Arrange
+      const userId = 'user-123';
+      const symbol = 'AAPL';
+      const buyStockDto: BuyStockDto = {
+        price: 150,
+        quantity: 5,
+      };
+
+      const mockTrade = {
+        id: 'trade-123',
+        userId,
+        symbol,
+        price: buyStockDto.price,
+        quantity: buyStockDto.quantity,
+        status: TradeStatus.PENDING,
+        timestamp: new Date(),
+      } as Trade;
+
+      tradeRepository.create.mockReturnValue(mockTrade);
+      tradeRepository.save.mockResolvedValue(mockTrade);
+      tradeRepository.findOne.mockResolvedValueOnce({
+        ...mockTrade,
+        status: TradeStatus.PENDING,
+      } as Trade);
+
+      // Simulate an unexpected error in the API
+      stocksService.getStockBySymbol.mockRejectedValue(
+        new Error('Unexpected error'),
+      );
+
+      // Act & Assert
+      await expect(
+        service.buyStock(userId, symbol, buyStockDto),
+      ).rejects.toThrow('Unexpected error');
+      expect(tradeRepository.update).toHaveBeenCalledWith(
+        mockTrade.id,
+        expect.objectContaining({
+          status: TradeStatus.FAILED,
+          reason: 'Unexpected error',
+        }),
+      );
     });
   });
 });

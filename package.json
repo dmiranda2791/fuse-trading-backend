@@ -24,7 +24,7 @@
     "docker:prod": "docker compose up",
     "docker:prod:build": "docker compose up --build",
     "docker:prod:down": "docker compose down",
-    "prepare": "husky",
+    "prepare": "node .husky/install.mjs",
     "seed-portfolio": "ts-node scripts/seed-portfolio.ts"
   },
   "dependencies": {
@@ -49,6 +49,7 @@
     "form-data": "^4.0.2",
     "handlebars": "^4.7.8",
     "joi": "^17.13.3",
+    "mailgun.js": "^12.0.1",
     "nodemailer": "^6.10.0",
     "pg": "^8.14.1",
     "redis": "^4.7.0",

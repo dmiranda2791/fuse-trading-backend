@@ -5,7 +5,7 @@ import { compile } from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as FormData from 'form-data';
-import axios, { AxiosResponse } from 'axios';
+import Mailgun from 'mailgun.js';
 
 export interface MailOptions {
   to: string | string[];
@@ -19,15 +19,15 @@ export interface MailOptions {
   }[];
 }
 
-interface MailgunResponse {
-  id: string;
-  message: string;
-}
-
+/**
+ * Email service for sending emails via SMTP or Mailgun
+ */
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter;
+
+  private mailgunClient: ReturnType<Mailgun['client']> | null = null;
   private readonly from: string;
   private readonly recipients: string[];
   private readonly useMailgun: boolean;
@@ -43,7 +43,9 @@ export class EmailService {
     this.mailgunDomain = this.configService.get<string>('mailgun.domain') || '';
     this.mailgunApiKey = this.configService.get<string>('mailgun.apiKey') || '';
 
-    if (!this.useMailgun) {
+    if (this.useMailgun) {
+      this.initMailgun();
+    } else {
       this.initNodemailer();
     }
 
@@ -65,15 +67,50 @@ export class EmailService {
       return;
     }
 
-    this.transporter = nodemailer.createTransport({
+    const transportConfig: nodemailer.TransportOptions & {
+      host: string;
+      port: number;
+      secure: boolean;
+      auth?: {
+        user: string;
+        pass: string;
+      };
+    } = {
       host: smtpConfig.host,
       port: smtpConfig.port,
       secure: smtpConfig.port === 465,
-      auth: {
+    };
+
+    // Only include auth if both username and password are provided
+    if (smtpConfig.user && smtpConfig.pass) {
+      transportConfig.auth = {
         user: smtpConfig.user,
         pass: smtpConfig.pass,
-      },
-    });
+      };
+    }
+
+    this.transporter = nodemailer.createTransport(transportConfig);
+  }
+
+  private initMailgun(): void {
+    if (!this.mailgunApiKey || !this.mailgunDomain) {
+      this.logger.error('Mailgun configuration is missing');
+      return;
+    }
+
+    try {
+      const mailgun = new Mailgun(FormData);
+
+      this.mailgunClient = mailgun.client({
+        username: 'api',
+        key: this.mailgunApiKey,
+      });
+      this.logger.log('Mailgun client initialized');
+    } catch (error) {
+      this.logger.error(
+        `Failed to initialize Mailgun client: ${(error as Error).message}`,
+      );
+    }
   }
 
   async sendEmail(options: MailOptions): Promise<boolean> {
@@ -113,52 +150,48 @@ export class EmailService {
   }
 
   private async sendWithMailgun(options: MailOptions): Promise<boolean> {
-    if (!this.mailgunApiKey || !this.mailgunDomain) {
-      this.logger.error('Mailgun configuration is missing');
+    if (!this.mailgunClient) {
+      this.logger.error('Mailgun client not initialized');
       return false;
     }
 
-    const form = new FormData();
-    form.append('from', this.from);
+    try {
+      const messageData: {
+        from: string;
+        to: string;
+        subject: string;
+        html: string;
+        text?: string;
+        attachment?: {
+          data: string | Buffer;
+          filename: string;
+          contentType: string | undefined;
+        }[];
+      } = {
+        from: this.from,
+        to: Array.isArray(options.to) ? options.to.join(',') : options.to,
+        subject: options.subject,
+        html: options.html,
+      };
 
-    if (Array.isArray(options.to)) {
-      options.to.forEach(recipient => {
-        form.append('to', recipient);
-      });
-    } else {
-      form.append('to', options.to);
-    }
+      if (options.text) {
+        messageData.text = options.text;
+      }
 
-    form.append('subject', options.subject);
-    form.append('html', options.html);
-
-    if (options.text) {
-      form.append('text', options.text);
-    }
-
-    if (options.attachments) {
-      options.attachments.forEach(attachment => {
-        form.append('attachment', attachment.content, {
+      if (options.attachments && options.attachments.length > 0) {
+        messageData.attachment = options.attachments.map(attachment => ({
+          data: attachment.content,
           filename: attachment.filename,
           contentType: attachment.contentType,
-        });
-      });
-    }
+        }));
+      }
 
-    try {
-      const response: AxiosResponse<MailgunResponse> = await axios.post(
-        `https://api.mailgun.net/v3/${this.mailgunDomain}/messages`,
-        form,
-        {
-          auth: {
-            username: 'api',
-            password: this.mailgunApiKey,
-          },
-          headers: form.getHeaders(),
-        },
+      const result = await this.mailgunClient.messages.create(
+        this.mailgunDomain,
+        messageData,
       );
 
-      this.logger.log(`Email sent with Mailgun: ${response.data.id}`);
+      this.logger.log(`Email sent with Mailgun: ${result.id}`);
       return true;
     } catch (error) {
       const err = error as Error;

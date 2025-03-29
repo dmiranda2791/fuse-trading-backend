@@ -14,14 +14,14 @@ export interface ErrorResponse {
   message: string;
   timestamp: string;
   path: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 interface ExceptionResponseType {
   errorCode?: string;
   message?: string;
-  details?: Record<string, any>;
-  [key: string]: any;
+  details?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 @Catch(HttpException)
