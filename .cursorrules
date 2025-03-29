@@ -1,0 +1,8 @@
+
+- Avoid the use of any as type, be strict on typing.
+- When refactoring, remove code that gets unused. 
+- Prefer clean solutions
+- Do not turn off any linting rules
+- Do not disable linting on any lines
+- Do not disable type checking on any line
+- Always use type safe solution 
