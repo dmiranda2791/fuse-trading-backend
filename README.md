@@ -68,6 +68,31 @@ npm run docker:prod:build
 npm run docker:prod:down
 ```
 
+### Email Testing with Mailhog
+
+This project uses Mailhog for email testing in development environments. **Important:** Mailhog is designed for development purposes only and does not actually deliver emails to real recipients by default.
+
+When running the application with Docker Compose:
+
+- Report emails and other system emails are sent to Mailhog
+- You can view all captured emails at http://localhost:8025
+- From the web interface, you can inspect email content, headers, and attachments
+- If needed, you can manually release emails for actual delivery through the Mailhog UI
+
+To test the report generation:
+
+1. Use the report endpoints (`POST /reports/generate` or `GET /reports/generate-sync`)
+2. Check the Mailhog UI at http://localhost:8025 to see the generated report emails
+3. View the HTML content of the report by clicking on the email
+
+In production environments, the application is configured to use Mailgun for reliable email delivery of reports and notifications. To enable Mailgun:
+
+1. Set `ENABLE_MAILGUN=true` in your environment variables
+2. Configure `MAILGUN_API_KEY` and `MAILGUN_DOMAIN` with your Mailgun account credentials
+3. Set appropriate `EMAIL_FROM` and `EMAIL_RECIPIENTS` values for production use
+
+If Mailgun is not enabled, the system will fall back to standard SMTP configuration.
+
 ### Platform Compatibility Note
 
 This project includes services that may require architecture emulation:
@@ -193,6 +218,13 @@ For detailed information about the implementation of each module, please see the
 ### Trades
 
 - `POST /api/stocks/:symbol/buy` - Execute stock purchase
+
+### Reports
+
+- `POST /reports/generate` - Trigger asynchronous generation of a daily report (optional `days` query param, default: 0 = today)
+- `GET /reports/generate-sync` - Generate and send a daily report synchronously (optional `days` query param, default: 0 = today)
+
+> **Note:** In development, report emails are sent to Mailhog and can be viewed at http://localhost:8025. In production, reports are delivered via Mailgun to actual recipients when the `ENABLE_MAILGUN` feature flag is set to `true`; otherwise, standard SMTP is used.
 
 ## Testing
 

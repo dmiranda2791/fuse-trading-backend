@@ -24,7 +24,7 @@ export class ReportsController {
     required: false,
     type: Number,
     description:
-      'Number of days ago to generate the report for (default: 1 = yesterday)',
+      'Number of days ago to generate the report for (default: 0 = today)',
   })
   @ApiResponse({
     status: 200,
@@ -36,7 +36,7 @@ export class ReportsController {
   })
   @Post('generate')
   async generateReport(
-    @Query('days', new DefaultValuePipe(1), ParseIntPipe) days: number,
+    @Query('days', new DefaultValuePipe(0), ParseIntPipe) days: number,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Calculate the date for the report
@@ -66,13 +66,13 @@ export class ReportsController {
     required: false,
     type: Number,
     description:
-      'Number of days ago to generate the report for (default: 1 = yesterday)',
+      'Number of days ago to generate the report for (default: 0 = today)',
   })
   @ApiResponse({ status: 200, description: 'Report generated successfully' })
   @ApiResponse({ status: 500, description: 'Failed to generate report' })
   @Get('generate-sync')
   async generateSyncReport(
-    @Query('days', new DefaultValuePipe(1), ParseIntPipe) days: number,
+    @Query('days', new DefaultValuePipe(0), ParseIntPipe) days: number,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Calculate the date for the report
